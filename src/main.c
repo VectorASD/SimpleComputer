@@ -7,10 +7,15 @@ typedef const char *text;
 byte memory[100];
 byte flags;
 
-#define OF 0x01 // Overflow flag
+#define OF 0x02 // Overflow flag
 
 int sc_regInit() {
     flags = 0;
+    return 0;
+}
+int sc_regGet(int reg, int *value) {
+    if (reg != OF) return 2;
+    *value = (flags & reg) != 0;
     return 0;
 }
 int sc_regSet(int reg, int value) {
@@ -28,14 +33,15 @@ int sc_memoryInit() {
 int main(int argc, char **args) {
     sc_regInit();
     sc_memoryInit();
-    printf("flags: %u\n", flags);
+    int value;
+    if (!sc_regGet(OF, &value)) printf("flags: %u %u\n", flags, value);
     sc_regSet(OF, 0);
-    printf("flags: %u\n", flags);
+    if (!sc_regGet(OF, &value)) printf("flags: %u %u\n", flags, value);
     sc_regSet(OF, 1);
-    printf("flags: %u\n", flags);
+    if (!sc_regGet(OF, &value)) printf("flags: %u %u\n", flags, value);
     sc_regSet(OF, 1);
-    printf("flags: %u\n", flags);
+    if (!sc_regGet(OF, &value)) printf("flags: %u %u\n", flags, value);
     sc_regSet(OF, 0);
-    printf("flags: %u\n", flags);
+    if (!sc_regGet(OF, &value)) printf("flags: %u %u\n", flags, value);
     return 0;
 }
