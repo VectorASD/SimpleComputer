@@ -2,7 +2,7 @@ APP_NAME = main
 LIB_NAME = libyeah
 PROJECT = simplecomputer
 
-CFLAGS = -Wall -Werror -I include
+CFLAGS = -Wall -Werror -I include -MMD
 LFLAGS = -lm
 
 APP_SRC = $(wildcard src/*.c)
@@ -10,12 +10,15 @@ LIB_SRC = $(wildcard src/lib$(PROJECT)/*.c)
 APP_OBJ = $(APP_SRC:src/%.c=obj/src/%.o)
 LIB_OBJ = $(LIB_SRC:src/%.c=obj/src/%.o)
 OBJ = $(APP_OBJ) $(LIB_OBJ)
+DEPS = $(OBJ:.o=.d) $(TEST_OBJ:.o=.d)
 
 APP_PATH = bin/$(PROJECT)/$(APP_NAME)
 LIB_PATH = obj/src/lib$(PROJECT)/$(LIB_NAME).a
 
 .PHONY: all
 all: $(OBJ) $(APP_PATH)
+
+-include $(DEPS)
 
 $(APP_PATH): $(APP_OBJ) $(LIB_PATH)
 	gcc $^ -o $@ $(LFLAGS)
@@ -31,7 +34,7 @@ run: all
 
 .PHONY: clean
 clean:
-	rm -f $(APP_PATH) $(LIB_PATH) $(OBJ)
+	rm -f $(APP_PATH) $(LIB_PATH) $(OBJ) $(DEPS)
 
 .PHONY: format
 format:

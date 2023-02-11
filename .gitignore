@@ -1,3 +1,9 @@
+# Assembly artifacts
+main
+
+# Runtime artifacts
+*.mem
+
 # Prerequisites
 *.d
 
