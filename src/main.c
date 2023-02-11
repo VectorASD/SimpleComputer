@@ -108,9 +108,36 @@ void sc_memoryTest() {
     sc_memoryPrint();
 }
 
+int sc_commandEncode(int command, int operand, int *value) {
+    if (command < 0 || command > 127) return 1;
+    if (operand < 0 || operand > 127) return 2;
+    *value = (command << 7) | operand;
+    return 0;
+}
+int sc_commandDecode(int value, int *command, int *operand) {
+    if ((value >> 14) != 0) return 1; // не команда
+    *command = value >> 7;
+    *operand = value & 127;
+    return 0;
+}
+void sc_commandTest() {
+    for (int i = 0; i < 16; i++) {
+        int value = (i * 0x231245141) % 0x7fff, command, operand;
+        int err = sc_commandDecode(value, &command, &operand);
+        if (err) {
+            printf("%2u: %5u %3u %3u (%u)\n", i, value, command, operand, err);
+            continue;
+        }
+        int value2;
+        err = sc_commandEncode(command, operand, &value2);
+        printf("%2u: %5u %3u %3u (%u) -> %u\n", i, value, command, operand, err, value2);
+    }
+}
+
 int main(int argc, char **args) {
     // sc_regTest();
-    sc_memoryTest();
+    //sc_memoryTest();
+    sc_commandTest();
 
     return 0;
 }
