@@ -78,7 +78,7 @@ int str_len(text str) {
     return pos;
 }
 void mt_printBox(int X, int Y, int SX, int SY, text title) {
-    if (SX < 2 || SY < 2 || mt_gotoXY(++Y, ++X)) return;
+    if (SX < 1 || SY < 1 || mt_gotoXY(++Y, ++X)) return;
     int orig_Y = Y, len = str_len(title);
     printf(BOX_LU);
     for (int i = 0; i < SX; i++) printf(BOX_H);
@@ -91,16 +91,20 @@ void mt_printBox(int X, int Y, int SX, int SY, text title) {
     printf(BOX_LD);
     for (int i = 0; i < SX; i++) printf(BOX_H);
     printf(BOX_RD);
-    mt_gotoXY(orig_Y, X + (SX - len) / 2);
-    printf(" %s ", title);
+    if (len) {
+        mt_gotoXY(orig_Y, X + (SX - len) / 2);
+        printf(" %s ", title);
+    }
     mt_gotoXY(orig_Y + 1, X + 1);
 }
 
 void mt_printMemory(int X, int Y, int current) {
     mt_printBox(X, Y, 59, (MEMORY_SIZE + 9) / 10, "Memory");
+    X += 2;
+    Y += 2;
     for (int mem = 0; mem < MEMORY_SIZE; mem++) {
         int memX = mem % 10, memY = mem / 10;
-        if (memX == 0 && memY) mt_gotoXY(Y + memY + 2, X + 2);
+        if (memX == 0 && memY) mt_gotoXY(Y + memY, X);
         if (memX) printf(" ");
         int value;
         sc_memoryGet(mem, &value);
@@ -110,6 +114,58 @@ void mt_printMemory(int X, int Y, int current) {
         }
         printf("+%04X", value);
         if (mem == current) mt_clrclr();
+    }
+}
+void mt_printFlags(int X, int Y) {
+    mt_printBox(X, Y, 25, 1, "Flags");
+    X += 2;
+    Y += 2;
+    char buff[12];
+    byte flags[5];
+    int pos = 0, value;
+
+    for (int i = 0; i < 5; i++) sc_regSet(1 << i, 1); // костыль для проверки
+
+    sc_regGet(DF, &value); // Для максимальной правдаподобности,
+    flags[0] = value;      // хоть руки и чешутся влубить цикл, где: reg = 1 << i
+    sc_regGet(OF, &value);
+    flags[1] = value;
+    sc_regGet(MF, &value);
+    flags[2] = value;
+    sc_regGet(TF, &value);
+    flags[3] = value;
+    sc_regGet(EF, &value);
+    flags[4] = value;
+
+    for (int i = 0; i < 5; i++)
+        if (flags[i]) {
+            if (pos) buff[pos++] = ' ';
+            buff[pos++] = "DOMTE"[i];
+        }
+    buff[pos] = 0;
+
+    mt_gotoXY(Y, X + (25 - pos) / 2);
+    printf("%s", buff);
+}
+void mt_printKeys(int X, int Y) {
+    mt_printBox(X, Y, 40, 8, "Keys");
+    X += 2;
+    Y += 2;
+    text keys[] = {"l  - load", "s  - save", "r  - run", "s  - step", "r  - reset", "F5 - accumulator", "F6 - instructionCounter"};
+    for (int i = 0; i < 7; i++) {
+        mt_gotoXY(Y + i, X);
+        printf("%s", keys[i]);
+    }
+}
+void mt_printBigNumbers(int X, int Y) { // TODO
+    mt_printBox(X, Y, 8 * 5 + 4, 8, "");
+    X += 2;
+    Y += 2;
+    for (int num = 0; num < 5; num++) {
+        for (int row = 0; row < 8; row++) {
+            mt_gotoXY(Y + row, X + num * 9);
+            printf("[][][][]");
+        }
     }
 }
 
@@ -137,6 +193,9 @@ void mt_termTest() {
     mt_printBox(6, 3, 20, 5, "YeahBox");
     mt_printBox(29, 3, 20, 5, "YeahBox2");
     mt_printMemory(6, 10, 44);
+    mt_printFlags(68, 19);
+    mt_printBigNumbers(6, 22);
+    mt_printKeys(53, 22);
     mt_ll();
 }
 

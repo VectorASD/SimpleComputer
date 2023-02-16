@@ -9,13 +9,13 @@ int sc_regInit() {
     return 0;
 }
 int sc_regGet(int reg, int *value) {
-    if (reg != OF) return 2;
+    if (reg != DF && reg != OF && reg != MF && reg != TF && reg != EF) return 2;
     *value = (flags & reg) != 0;
     return 0;
 }
 int sc_regSet(int reg, int value) {
     if (value != 0 && value != 1) return 1;
-    if (reg != OF) return 2;
+    if (reg != DF && reg != OF && reg != MF && reg != TF && reg != EF) return 2;
     if (((flags & reg) != 0) != value) flags ^= reg;
     return 0;
 }
@@ -26,17 +26,19 @@ int sc_memoryInit() {
 }
 int sc_memorySet(int address, int value) {
     if (address < 0 || address >= MEMORY_SIZE) {
-        sc_regSet(OF, 1);
+        sc_regSet(MF, 1);
         return 1;
     }
+    sc_regSet(MF, 0);
     memory[address] = (ushort) value;
     return 0;
 }
 int sc_memoryGet(int address, int *value) {
     if (address < 0 || address >= MEMORY_SIZE) {
-        sc_regSet(OF, 1);
+        sc_regSet(MF, 1);
         return 1;
     }
+    sc_regSet(MF, 0);
     *value = memory[address];
     return 0;
 }
