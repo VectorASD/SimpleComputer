@@ -91,9 +91,26 @@ void mt_printBox(int X, int Y, int SX, int SY, text title) {
     printf(BOX_LD);
     for (int i = 0; i < SX; i++) printf(BOX_H);
     printf(BOX_RD);
-    mt_gotoXY(orig_Y, X + (SX - len) / 2 + 1);
-    printf("%s", title);
+    mt_gotoXY(orig_Y, X + (SX - len) / 2);
+    printf(" %s ", title);
     mt_gotoXY(orig_Y + 1, X + 1);
+}
+
+void mt_printMemory(int X, int Y, int current) {
+    mt_printBox(X, Y, 59, (MEMORY_SIZE + 9) / 10, "Memory");
+    for (int mem = 0; mem < MEMORY_SIZE; mem++) {
+        int memX = mem % 10, memY = mem / 10;
+        if (memX == 0 && memY) mt_gotoXY(Y + memY + 2, X + 2);
+        if (memX) printf(" ");
+        int value;
+        sc_memoryGet(mem, &value);
+        if (mem == current) {
+            mt_setfgcolor(SUN);
+            mt_setbgcolor(BLUE);
+        }
+        printf("+%04X", value);
+        if (mem == current) mt_clrclr();
+    }
 }
 
 void mt_termTest() {
@@ -117,8 +134,9 @@ void mt_termTest() {
     mt_clrclr();
     mt_ll();
     for (int i = 0; i < rows; i++) printf("\n"); // Очищает экран без потери выведенного до этого текста
-    mt_printBox(0, 0, 20, 10, "YeahBox");
-    mt_printBox(23, 0, 20, 10, "YeahBox2");
+    mt_printBox(6, 3, 20, 5, "YeahBox");
+    mt_printBox(29, 3, 20, 5, "YeahBox2");
+    mt_printMemory(6, 10, 44);
     mt_ll();
 }
 
