@@ -1,4 +1,5 @@
 #include <lib.h>
+#include <myTerm.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -64,11 +65,35 @@ void sc_commandTest() {
     }
 }
 
+void mt_termTest() {	
+	int rows, cols;
+	mt_getscreensize(&rows, &cols);
+	printf("screen sizes: %ux%u\n", cols, rows);
+	printf("DEFAULT\n");
+	text Names[] = {"Black", "Red", "Green", "Brown", "Blue", "Magent", "Cyan", "DarkGray",
+	  "LightGray", "Pink", "Lime", "Sun", "Aqua", "LightMagent", "LightCyan", "White"};
+	for (int i = 0; i < 16; i++) {
+		printf("   ");
+		mt_setfgcolor(i);
+		mt_setbgcolor(15 - i);
+		printf("Фон: %11s   Буквы: %11s", Names[i], Names[15 - i]);
+		mt_clrclr();
+		printf("\n");
+	}
+	mt_setfgcolor(SUN);
+	mt_setbgcolor(BLUE);
+	for (int i = 0; i < 16; i++) if (!mt_gotoXY((i ^ 5) + 1, i + 40)) printf("YEAH! %u", i);
+	mt_clrclr();
+	mt_ll();
+}
+
 int main(int argc, char **args) {
     sc_regTest();
     printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     sc_memoryTest();
     printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     sc_commandTest();
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    mt_termTest();
     return 0;
 }
