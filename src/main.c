@@ -157,14 +157,16 @@ void mt_printKeys(int X, int Y) {
         printf("%s", keys[i]);
     }
 }
-void mt_printBigNumbers(int X, int Y) { // TODO
+
+// Спасибо https://unicode-table.com/ru/blocks/block-elements/
+void mt_printBigNumbers(int X, int Y) { // TODO. Собираюсь подкрутить TTF для генерации 16x16 матриц, но это уже следующая лабораторная
     mt_printBox(X, Y, 8 * 5 + 4, 8, "");
     X += 2;
     Y += 2;
     for (int num = 0; num < 5; num++) {
         for (int row = 0; row < 8; row++) {
             mt_gotoXY(Y + row, X + num * 9);
-            printf("[][][][]");
+            printf("▞▖▚▗▘▙▝▟"); // Недостаёт до полных 16 комбинаций: ▛▜█ ▌▐▄▀
         }
     }
 }
