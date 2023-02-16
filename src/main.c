@@ -65,6 +65,37 @@ void sc_commandTest() {
     }
 }
 
+// Спасибо https://unicode-table.com/ru/blocks/box-drawing/
+#define BOX_LU "╔"
+#define BOX_RU "╗"
+#define BOX_RD "╝"
+#define BOX_LD "╚"
+#define BOX_V "║"
+#define BOX_H "═"
+int str_len(text str) {
+    int pos = 0;
+    while (str[pos]) pos++;
+    return pos;
+}
+void mt_printBox(int X, int Y, int SX, int SY, text title) {
+    if (SX < 2 || SY < 2 || mt_gotoXY(++Y, ++X)) return;
+    int orig_Y = Y, len = str_len(title);
+    printf(BOX_LU);
+    for (int i = 0; i < SX; i++) printf(BOX_H);
+    printf(BOX_RU);
+    for (int i = 0; i < SY; i++) {
+        if (!mt_gotoXY(++Y, X)) printf(BOX_V);
+        if (!mt_gotoXY(Y, X + SX + 1)) printf(BOX_V);
+    }
+    mt_gotoXY(++Y, X);
+    printf(BOX_LD);
+    for (int i = 0; i < SX; i++) printf(BOX_H);
+    printf(BOX_RD);
+    mt_gotoXY(orig_Y, X + (SX - len) / 2 + 1);
+    printf("%s", title);
+    mt_gotoXY(orig_Y + 1, X + 1);
+}
+
 void mt_termTest() {
     int rows, cols;
     mt_getscreensize(&rows, &cols);
@@ -84,6 +115,10 @@ void mt_termTest() {
     for (int i = 0; i < 16; i++)
         if (!mt_gotoXY((i ^ 5) + 1, i + 40)) printf("YEAH! %u", i);
     mt_clrclr();
+    mt_ll();
+    for (int i = 0; i < rows; i++) printf("\n"); // Очищает экран без потери выведенного до этого текста
+    mt_printBox(0, 0, 20, 10, "YeahBox");
+    mt_printBox(23, 0, 20, 10, "YeahBox2");
     mt_ll();
 }
 
