@@ -1,5 +1,7 @@
 #pragma once
 
+#include <lib.h>
+
 typedef enum {BLACK, RED, GREEN, BROWN, BLUE, MAGENT, CYAN, DARK_GRAY, LIGHT_GRAY, PINK, LIME, SUN, AQUA, LIGHT_MAGENT, LIGHT_CYAN, WHITE} Color;
 
 int mt_clrscr();
@@ -11,3 +13,13 @@ int mt_setbgcolor(Color color);
 int mt_clrclr();
 
 int mt_ll();
+
+/* visual tests */
+
+int str_len(text str);
+void mt_printBox(int X, int Y, int SX, int SY, text title);
+void mt_printMemory(int X, int Y, int current);
+void mt_printFlags(int X, int Y);
+void mt_printKeys(int X, int Y);
+void mt_printBigNumbers(int X, int Y);
+void mt_termTest();

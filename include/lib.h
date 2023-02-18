@@ -27,3 +27,10 @@ int sc_memoryLoad(text path);
 
 int sc_commandEncode(int command, int operand, int *value);
 int sc_commandDecode(int value, int *command, int *operand);
+
+/* visual tests */
+
+void sc_regTest();
+void sc_memoryPrint();
+void sc_memoryTest();
+void sc_commandTest();
