@@ -50,39 +50,33 @@ int bc_printbigchar(int c[2], int x, int y, Color a, Color b) {
     return 0;
 }
 
-// - выводит на экран "большой символ" размером восемь строк на
-// восемь столбцов, левый верхний угол которого располагается в строке x и
-// столбце y. Третий и четвёртый параметры определяют цвет и фон выводимых
-// символов. "Символ" выводится исходя из значений массива целых чисел
-// следующим образом. В первой строке выводится 8 младших бит первого
-// числа, во второй следующие 8, в третьей и 4 следующие. В 5 строке выводятся
-// 8 младших бит второго числа и т.д. При этом если значение бита = 0, то
-// выводится символ "пробел", иначе - символ, закрашивающий знакоместо
-// (ACS_CKBOARD);
-
-int bc_setbigcharpos(int *big, int x, int y, int value) {
+// Вообще не понял смысловую нагрузку этих двух функция и зачем вообще тут *big + звёздочки не там стояли
+int bc_setbigcharpos(int *big, int x, int y, int *value) {
+    *value = x << 16 | y;
     return 0;
 }
-// - устанавливает значение знакоместа "большого символа" в строке x и столбце
-// y в значение value;
-
-int bc_getbigcharpos(int *big, int x, int y, int *value) {
+int bc_getbigcharpos(int *big, int *x, int *y, int value) {
+    *x = value >> 16;
+    *y = value & 0xffff;
     return 0;
 }
-// - возвращает значение позиции в "большом символе" в строке x и столбце y;
 
-int bc_bigcharwrite(int fd, int *big, int count) {
+int bc_bigcharwrite(int fd, int *big, int count) { // Зачем fd ? FILE* без звёздочки будет не правильно передавать...
+    FILE *file;
+    if ((file = fopen("glyph_base.asd", "wb")) == NULL) return 1;
+    if (fwrite(big, sizeof(int) * 2, count, file) != count) return 2;
+    if (fclose(file) == EOF) return 3;
     return 0;
 }
-// - записывает заданное число "больших символов" в файл. Формат записи определяется
-// пользователем;
-
 int bc_bigcharread(int fd, int *big, int need_count, int *count) {
+    FILE *file;
+    *count = 0;
+    if ((file = fopen("glyph_base.asd", "rb")) == NULL) return 1;
+    int finded = fread(big, sizeof(int) * 2, need_count, file);
+    if (fclose(file) == EOF) return 3;
+    *count = finded;
     return 0;
 }
-// - считывает из файла заданное количество "больших символов".
-// Третий параметр указывает адрес переменной, в которую помещается
-// количество считанных символов или 0, в случае ошибки.
 
 //
 // Далее идут мои методы, т.е. те, что не описаны в ТЗ
@@ -95,7 +89,7 @@ void sc_printTable() {
     }
 }
 
-int glyph_table[64];
+int glyph_table[64]; // приватная таблица символов
 
 void load_glyph(FT_Face face, uint code, uint pos) {
     if (FT_Load_Char(face, code, FT_LOAD_RENDER)) {
@@ -104,21 +98,22 @@ void load_glyph(FT_Face face, uint code, uint pos) {
         return load_glyph(face, '?', pos);
     }
     FT_Bitmap bitmap = face->glyph->bitmap;
-    int width = bitmap.width; //, rows = bitmap.rows;
-
+    int width = bitmap.width, rows = bitmap.rows;
+    int shift = (8 - rows) / 2;
     int A = 0, B = 0;
-    for (int y = 0; y < 8; y++) {
+    for (int y = -shift; y < 8 - shift; y++) {
         byte b = 0;
         for (int x = -1; x < 7; x++) {
-            byte alpha = x < 0 || x >= width ? 0 : bitmap.buffer[x + y * width];
+            byte alpha = x < 0 || x >= width || y >= rows ? 0 : bitmap.buffer[x + y * width];
             byte bit = alpha > 35;
             if (bit) b |= 1 << (6 - x);
             //printf("%u ", bit);
         }
-        if (y < 4)
-            A |= b << (8 * (3 - y));
+        int norm_y = y + shift;
+        if (norm_y < 4)
+            A |= b << (8 * (3 - norm_y));
         else
-            B |= b << (8 * (7 - y));
+            B |= b << (8 * (7 - norm_y));
         //printf("\n");
     }
     //printf("%x %x\n", A, B);
@@ -141,6 +136,8 @@ void bc_glyphs_loader() {
 
     FT_Set_Pixel_Sizes(face, 0, 13); // 13 размер для ttf воспринимается, как 8 пикселей в высоту и 6 в ширину
     for (int i = 0; i < 10; i++) load_glyph(face, '0' + i, i * 2);
+    load_glyph(face, '+', 20);
+    load_glyph(face, '-', 22);
 
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -153,9 +150,18 @@ void bc_tprintbigchar(uint pos, int x, int y, Color a, Color b) {
 
 void sc_termTest() {
     bc_glyphs_loader();
+    if (bc_bigcharwrite(0, glyph_table, 12)) exit(1);
+    for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
+    byte terminate = 0; // Если поставить не 0, то все глифы будут испорчены, т.е. действительно файл помнит символы как надо ;'-}
+    if (!terminate) {
+        int count = 0;
+        if (bc_bigcharread(0, glyph_table, 1000, &count)) exit(2);
+        if (count != 12) exit(3);
+    }
     //sc_printTable();
     mt_clrscr();
-    bc_box(5, 3, 8 * 10 + 2, 10);
-    for (int i = 0; i < 10; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, BLUE, SUN);
+    bc_box(5, 3, 8 * 12 + 2, 8 * 2 + 4);
+    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, BLUE, SUN);
+    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, BLUE, SUN); // rusty glyphs
     mt_ll();
 }
