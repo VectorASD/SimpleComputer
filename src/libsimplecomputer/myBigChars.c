@@ -161,7 +161,7 @@ void sc_termTest() {
     //sc_printTable();
     mt_clrscr();
     bc_box(5, 3, 8 * 12 + 2, 8 * 2 + 4);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, BLUE, SUN);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, BLUE, SUN); // rusty glyphs
+    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, RED, SUN);
+    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, RED, SUN); // rusty glyphs
     mt_ll();
 }
