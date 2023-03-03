@@ -8,8 +8,8 @@ FreeTypeARCHIVE = freetype-2.12.1
 FreeTypeLIB_PATH = $(FreeTypeARCHIVE)/objs/libfreetype.a
 
 CFLAGS = -Wall -Werror -I include -MMD -I $(FreeTypeARCHIVE)/include
-LFLAGS = -lmyBigChars -lmyTerm -lmySimpleComputer -lm -L obj/src/lib$(PROJECT)
-# Тут библиотеки линкера в обратном порядке оказывается грузятся O_o Т.е. первее будет последняя
+LFLAGS = -lmyBigChars -lmyTerm -lmySimpleComputer -lm -lfreetype -L obj/src/lib$(PROJECT) -L $(FreeTypeARCHIVE)/objs/
+# Тут библиотеки линкером в обратном порядке оказывается грузятся O_o Т.е. первее будет последняя
 
 APP_SRC = $(wildcard src/*.c)
 APP_OBJ = $(APP_SRC:src/%.c=obj/src/%.o)
@@ -36,7 +36,7 @@ all: $(DIRS) $(FreeTypeLIB_PATH) $(OBJ) $(APP_PATH)
 
 -include $(DEPS)
 
-$(APP_PATH): $(APP_OBJ) $(LIBS) $(FreeTypeLIB_PATH)
+$(APP_PATH): $(APP_OBJ) $(LIBS)
 	gcc $< -o $@ $(LFLAGS)
 
 $(LIB_PATH): $(LIB_OBJ)
@@ -54,10 +54,10 @@ run: all
 
 .PHONY: clean
 clean:
-	rm -fr $(DIRS)
-ifneq ($(wildcard $(FreeTypeARCHIVE)),)
-	cd $(FreeTypeARCHIVE) && make clean
-endif
+	rm -fr $(DIRS) $(FreeTypeARCHIVE)
+#ifneq ($(wildcard $(FreeTypeARCHIVE)),)
+#	cd $(FreeTypeARCHIVE) && make clean
+#endif
 
 .PHONY: format
 format:

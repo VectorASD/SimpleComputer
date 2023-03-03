@@ -30,7 +30,7 @@ int mt_setfgcolor(Color color) {
         color = 8;
     else if (color == 8)
         color = 7; // Восстанавливает порядок в палитре, как в Паскале.
-    printf("\e[%d%dm", color < 8 ? 4 : 10, color & 7);
+    printf("\e[%d%dm", color < 8 ? 3 : 9, color & 7);
     return 0;
 }
 int mt_setbgcolor(Color color) {
@@ -39,7 +39,7 @@ int mt_setbgcolor(Color color) {
         color = 8;
     else if (color == 8)
         color = 7; // Восстанавливает порядок в палитре, как в Паскале.
-    printf("\e[%d%dm", color < 8 ? 3 : 9, color & 7);
+    printf("\e[%d%dm", color < 8 ? 4 : 10, color & 7);
     return 0;
 }
 int mt_clrclr() { // clear color. В лабораторной забыли добавить эту штуку.

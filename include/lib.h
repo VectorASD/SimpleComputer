@@ -2,6 +2,7 @@
 
 typedef unsigned char byte;
 typedef unsigned short ushort;
+typedef unsigned int uint;
 typedef const char *text;
 
 #define MEMORY_SIZE 100
