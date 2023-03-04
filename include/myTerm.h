@@ -4,6 +4,9 @@
 
 typedef enum {BLACK, RED, GREEN, BROWN, BLUE, MAGENT, CYAN, DARK_GRAY, LIGHT_GRAY, PINK, LIME, SUN, AQUA, LIGHT_MAGENT, LIGHT_CYAN, WHITE} Color;
 
+int str_len(text str);
+int my_printf(text format, ...);
+
 int mt_clrscr();
 int mt_gotoXY(int Y, int X);
 int mt_getscreensize(int *rows, int *cols);

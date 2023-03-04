@@ -55,7 +55,7 @@ clean:
 
 .PHONY: format
 format:
-	git ls-files *.c | xargs clang-format -i --verbose && git diff --exit-code
+	git ls-files *.c | xargs clang-format --style GNU -i --verbose && git diff --exit-code
 
 .NOPARALLEL: $(DIRS)
 .PHONY: $(DIRS)
