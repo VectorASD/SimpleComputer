@@ -288,7 +288,6 @@ bc_termTest ()
   bc_printKeys (53, 22);
   bc_printBigNumbers (68, 3, 0b111010000101111, WHITE, BLUE);
   bc_printBigNumbers (6, 22, current, RED, SUN);
-  my_printf ("\nLOLOS");
 
   mt_ll ();
 }
