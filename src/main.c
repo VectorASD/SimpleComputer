@@ -10,6 +10,6 @@ int main(int argc, char **args) {
     //sc_commandTest();
     printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     //mt_termTest();
-    sc_termTest();
+    bc_termTest();
     return 0;
 }

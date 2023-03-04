@@ -16,10 +16,6 @@ int mt_ll();
 
 /* visual tests */
 
-int str_len(text str);
 void mt_printBox(int X, int Y, int SX, int SY, text title);
-void mt_printMemory(int X, int Y, int current);
-void mt_printFlags(int X, int Y);
-void mt_printKeys(int X, int Y);
 void mt_printBigNumbers(int X, int Y);
 void mt_termTest();
