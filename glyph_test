@@ -1,0 +1,32 @@
+#!/bin/bash
+echo -en "\e[H\e[J" # стирает экран
+
+echo -en "\e(0" # врубаем альтернативку
+
+# Рисуем рамыч. В ТЗ указано, что рамка должна быть 8 на 8, но символ я туда не запихаю, по этому поставил 10 на 10
+echo -en  "\e[5;10Hlqqqqqqqqk"
+echo -en  "\e[6;10Hx        x"
+echo -en  "\e[7;10Hx        x"
+echo -en  "\e[8;10Hx        x"
+echo -en  "\e[9;10Hx        x"
+echo -en "\e[10;10Hx        x"
+echo -en "\e[11;10Hx        x"
+echo -en "\e[12;10Hx        x"
+echo -en "\e[13;10Hx        x"
+echo -en "\e[14;10Hmqqqqqqqqj"
+
+# Рисуем четвёрку - последнюю цифру моего дня рождения
+echo -en "\e[43m"
+echo -en "\e[34m"
+
+echo -en  "\e[6;11H   aa a "
+echo -en  "\e[7;11H  aa a  "
+echo -en  "\e[8;11H aa  a  "
+echo -en  "\e[9;11Ha    a a"
+echo -en "\e[10;11H aaaaaa "
+echo -en "\e[11;11Ha    a a"
+echo -en "\e[12;11H     a  "
+echo -en "\e[13;11H    a a "
+
+echo -en "\e(B" # отрубаем альтернативку
+echo -en "\e[15;1" # ставим на место каретку
