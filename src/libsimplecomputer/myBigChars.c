@@ -1,5 +1,6 @@
 #include <myBigChars.h>
 #include <stdio.h>
+#include <stdlib.h> // exit
 
 int bc_printA(text str) {
     printf("\e(0%s\e(B", str);
@@ -91,87 +92,19 @@ void sc_printTable() {
 
 int glyph_table[64]; // приватная таблица символов
 
-void load_glyph(FT_Face face, uint code, uint pos) {
-    if (FT_Load_Char(face, code, FT_LOAD_RENDER)) {
-        printf("Не удаётся загрузить глиф 0x%x\n", code);
-        if (code == '?') exit(9);
-        return load_glyph(face, '?', pos);
-    }
-    FT_Bitmap bitmap = face->glyph->bitmap;
-    int width = bitmap.width, rows = bitmap.rows;
-    int shift = (8 - rows) / 2;
-    int A = 0, B = 0;
-    byte porog = code >= 'a' && code <= 'f' ? 0 : 35;
-    for (int y = -shift; y < 8 - shift; y++) {
-        byte b = 0;
-        for (int x = -1; x < 7; x++) {
-            byte alpha = x < 0 || x >= width || y >= rows ? 0 : bitmap.buffer[x + y * width];
-            byte bit = alpha > porog;
-            if (bit) b |= 1 << (6 - x);
-            //printf("%u ", bit);
-        }
-        int norm_y = y + shift;
-        if (norm_y < 4)
-            A |= b << (8 * (3 - norm_y));
-        else
-            B |= b << (8 * (7 - norm_y));
-        //printf("\n");
-    }
-    //printf("%x %x\n", A, B);
-    glyph_table[pos] = A;
-    glyph_table[pos + 1] = B;
-    if (code == 'a') {
-    	glyph_table[pos] = 0b00011000001111000110011001100110;
-    	glyph_table[pos + 1] = 0b11111111110000111100001111000011;
-    }
-    if (code == 'e') {
-    	glyph_table[pos] = 0b00000000011111101110011111000011;
-    	glyph_table[pos + 1] = 0b01111110110000001110000001111111;
-    }
-    if (code == 'f') {
-    	glyph_table[pos] = 0b00001110000110010001100001111111;
-    	glyph_table[pos + 1] = 0b00011000000110000001100000011000;
-    }
-}
-
-void bc_glyphs_loader() {
-    FT_Library ft; // в freetype/freetype.h на 1072 строчке описана эта структура
-    FT_Face face;
-
-    if (FT_Init_FreeType(&ft)) {
-        printf("Не удаётся инициализировать FreeType библиотеку\n");
-        exit(7);
-    }
-    if (FT_New_Face(ft, "fonts/CodenameCoderFree4F-Bold.ttf", 0, &face)) {
-        printf("Не удаётся загрузить шрифт\n");
-        exit(8);
-    }
-
-    FT_Set_Pixel_Sizes(face, 0, 13); // 13 размер для ttf воспринимается, как 8 пикселей в высоту и 6 в ширину
-    for (int i = 0; i < 10; i++) load_glyph(face, '0' + i, i * 2);
-    load_glyph(face, '+', 20);
-    load_glyph(face, '-', 22);
-    for (int i = 0; i < 6; i++) load_glyph(face, 'a' + i, 24 + i * 2);
-
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-}
-
 void bc_tprintbigchar(uint pos, int x, int y, Color a, Color b) {
     int c[] = {glyph_table[pos], glyph_table[pos + 1]};
     bc_printbigchar(c, x, y, a, b);
 }
 
 void sc_termTest() {
-    //bc_glyphs_loader();
-    //if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
-    //for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
-    //byte terminate = 0; // Если поставить не 0, то все глифы будут испорчены, т.е. действительно файл помнит символы как надо ;'-}
-    //if (!terminate) {
     int count = 0;
     if (bc_bigcharread(0, glyph_table, 1000, &count)) exit(2);
     if (count != 18) exit(3);
-    //}
+    
+    //if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
+    //for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
+    
     //sc_printTable();
     mt_clrscr();
     bc_box(5, 3, 8 * 18 + 2, 8 * 2 + 4);

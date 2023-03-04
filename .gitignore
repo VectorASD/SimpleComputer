@@ -3,7 +3,6 @@ main
 
 # Runtime artifacts
 *.mem
-freetype-2.12.1/*
 
 # Prerequisites
 *.d
