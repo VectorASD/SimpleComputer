@@ -101,11 +101,12 @@ void load_glyph(FT_Face face, uint code, uint pos) {
     int width = bitmap.width, rows = bitmap.rows;
     int shift = (8 - rows) / 2;
     int A = 0, B = 0;
+    byte porog = code >= 'a' && code <= 'f' ? 0 : 35;
     for (int y = -shift; y < 8 - shift; y++) {
         byte b = 0;
         for (int x = -1; x < 7; x++) {
             byte alpha = x < 0 || x >= width || y >= rows ? 0 : bitmap.buffer[x + y * width];
-            byte bit = alpha > 35;
+            byte bit = alpha > porog;
             if (bit) b |= 1 << (6 - x);
             //printf("%u ", bit);
         }
@@ -119,6 +120,18 @@ void load_glyph(FT_Face face, uint code, uint pos) {
     //printf("%x %x\n", A, B);
     glyph_table[pos] = A;
     glyph_table[pos + 1] = B;
+    if (code == 'a') {
+    	glyph_table[pos] = 0b00011000001111000110011001100110;
+    	glyph_table[pos + 1] = 0b11111111110000111100001111000011;
+    }
+    if (code == 'e') {
+    	glyph_table[pos] = 0b00000000011111101110011111000011;
+    	glyph_table[pos + 1] = 0b01111110110000001110000001111111;
+    }
+    if (code == 'f') {
+    	glyph_table[pos] = 0b00001110000110010001100001111111;
+    	glyph_table[pos + 1] = 0b00011000000110000001100000011000;
+    }
 }
 
 void bc_glyphs_loader() {
@@ -138,6 +151,7 @@ void bc_glyphs_loader() {
     for (int i = 0; i < 10; i++) load_glyph(face, '0' + i, i * 2);
     load_glyph(face, '+', 20);
     load_glyph(face, '-', 22);
+    for (int i = 0; i < 6; i++) load_glyph(face, 'a' + i, 24 + i * 2);
 
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -149,19 +163,19 @@ void bc_tprintbigchar(uint pos, int x, int y, Color a, Color b) {
 }
 
 void sc_termTest() {
-    bc_glyphs_loader();
-    if (bc_bigcharwrite(0, glyph_table, 12)) exit(1);
-    for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
-    byte terminate = 0; // Если поставить не 0, то все глифы будут испорчены, т.е. действительно файл помнит символы как надо ;'-}
-    if (!terminate) {
-        int count = 0;
-        if (bc_bigcharread(0, glyph_table, 1000, &count)) exit(2);
-        if (count != 12) exit(3);
-    }
+    //bc_glyphs_loader();
+    //if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
+    //for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
+    //byte terminate = 0; // Если поставить не 0, то все глифы будут испорчены, т.е. действительно файл помнит символы как надо ;'-}
+    //if (!terminate) {
+    int count = 0;
+    if (bc_bigcharread(0, glyph_table, 1000, &count)) exit(2);
+    if (count != 18) exit(3);
+    //}
     //sc_printTable();
     mt_clrscr();
-    bc_box(5, 3, 8 * 12 + 2, 8 * 2 + 4);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, RED, SUN);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, RED, SUN); // rusty glyphs
+    bc_box(5, 3, 8 * 18 + 2, 8 * 2 + 4);
+    for (int i = 0; i < 18; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, RED, SUN);
+    for (int i = 0; i < 18; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, RED, SUN); // rusty glyphs
     mt_ll();
 }
