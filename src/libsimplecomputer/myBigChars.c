@@ -279,15 +279,13 @@ bc_termTest ()
   // bc_printTable();
 
   mt_clrscr ();
-  bc_printBox (6, 3, 20, 5, "YeahBox1");
-  bc_printBox (29, 3, 20, 5, "YeahBox2");
 
   int current = 44;
-  bc_printMemory (6, 10, current);
-  bc_printFlags (68, 19);
-  bc_printKeys (53, 22);
-  bc_printBigNumbers (68, 3, 0b111010000101111, WHITE, BLUE);
-  bc_printBigNumbers (6, 22, current, RED, SUN);
+  bc_printMemory (6, 3, current);
+  bc_printFlags (68, 12);
+  bc_printKeys (53, 15);
+  bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
+  bc_printBigNumbers (6, 15, current, RED, SUN);
 
   mt_ll ();
 }
