@@ -56,13 +56,16 @@ bc_printbigchar (int c[2], int x, int y, Color a, Color b)
   mt_setbgcolor (b);
   char str[9];
   str[8] = 0;
+  int pix;
 
   for (int i = 0; i < 8; i++)
     {
       mt_gotoXY (y++, x);
-      byte B = i < 4 ? c[0] >> (8 * (3 - i)) : c[1] >> (8 * (7 - i));
       for (int j = 0; j < 8; j++)
-        str[j] = B >> (7 - j) & 1 ? 'a' : ' ';
+        {
+          bc_getbigcharpos (c, j, i, &pix);
+          str[j] = pix ? 'a' : ' ';
+        }
       bc_printA (str);
     }
 
@@ -70,16 +73,27 @@ bc_printbigchar (int c[2], int x, int y, Color a, Color b)
   return 0;
 }
 
-// Вообще не понял смысловую нагрузку этих двух функция и зачем вообще тут *big
-// + звёздочки не там стояли
 int
-bc_setbigcharpos (int *big, int x, int y, int *value)
+bc_setbigcharpos (int *big, int x, int y, int value)
 {
+  if (x < 0 || x > 7 || y < 0 || y > 7)
+    return 1;
+  if (value != 0 && value != 1)
+    return 2;
+  int *num = y < 4 ? big : big + 1;
+  int bit = (3 - (y & 3)) << 3 | (7 - x);
+  if (((*num) >> bit & 1) != value)
+    (*num) ^= 1 << bit;
   return 0;
 }
 int
 bc_getbigcharpos (int *big, int x, int y, int *value)
 {
+  *value = 0;
+  if (x < 0 || x > 7 || y < 0 || y > 7)
+    return 1;
+  byte B = y < 4 ? big[0] >> ((3 - y) << 3) : big[1] >> ((7 - y) << 3);
+  *value = B >> (7 - x) & 1;
   return 0;
 }
 
