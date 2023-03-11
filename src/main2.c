@@ -5,6 +5,6 @@
 int
 main (int argc, char **args)
 {
-  mt_termTest();
+  mt_termTest ();
   return 0;
 }
