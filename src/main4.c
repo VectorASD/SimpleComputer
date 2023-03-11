@@ -5,6 +5,6 @@
 int
 main (int argc, char **args)
 {
-  rk_test();
+  rk_test ();
   return 0;
 }

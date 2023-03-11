@@ -181,7 +181,7 @@ bc_printMemory (int X, int Y, int current)
           mt_setfgcolor (SUN);
           mt_setbgcolor (BLUE);
         }
-  	  sc_commandDecode (value, &command, &operand);
+      sc_commandDecode (value, &command, &operand);
       my_printf ("%c%02X%02X", value >> 14 & 1 ? '-' : '+', command, operand);
       if (mem == current)
         mt_clrclr ();
@@ -300,28 +300,16 @@ bc_printInstrCounter (int instr)
 }
 
 void
-bc_termTest ()
+bc_start ()
 {
-  if (sc_memoryLoad ("memory.mem"))
-    {
-      my_printf ("Ошибка загрузки из файла\n");
-      return;
-    }
-  else
-    my_printf ("Файл загрузился удачно\n\n");
-
-  int count = 0;
+  int count;
   if (bc_bigcharread (0, glyph_table, 1000, &count))
-    exit (2);
+    {
+      my_printf ("Не обнаружен glyph_base.asd файл!\n");
+      exit (2);
+    }
   if (count != 18)
     exit (3);
-
-  // if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
-  // for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
-
-  // bc_printTable();
-
-  mt_clrscr ();
 
   bc_printAllBoxes ();
 
@@ -335,6 +323,25 @@ bc_termTest ()
   bc_printBigNumbers (6, 15, current, RED, SUN);
   bc_printAccumulator (accumulator);
   bc_printInstrCounter (0);
+}
 
+void
+bc_termTest ()
+{
+  if (sc_memoryLoad ("memory.mem"))
+    {
+      my_printf ("Ошибка загрузки из файла\n");
+      return;
+    }
+  else
+    my_printf ("Файл загрузился удачно\n\n");
+
+  // if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
+  // for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
+
+  // bc_printTable();
+
+  mt_clrscr ();
+  bc_start ();
   mt_ll ();
 }

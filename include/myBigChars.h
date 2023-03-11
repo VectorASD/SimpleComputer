@@ -19,4 +19,5 @@ void bc_printAllBoxes();
 void bc_printAccumulator(int accumulator);
 void bc_printInstrCounter(int instr);
 
+void bc_start();
 void bc_termTest();
