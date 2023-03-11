@@ -7,7 +7,7 @@ LIB_NAME2 = libmyTerm
 LIB_NAME3 = libmyBigChars
 LIB_NAME4 = libmyReadKey
 PROJECT = simplecomputer
-USE_APP = $(APP_PATH3)
+USE_APP = $(APP_PATH4)
 
 CFLAGS = -Wall -Werror -I include -MMD
 # Тут библиотеки линкером в обратном порядке оказывается грузятся O_o Т.е. первее будет последняя ;'-}
@@ -28,11 +28,12 @@ APP_SRC3 = src/$(APP_NAME3).c
 APP_OBJ3 = $(APP_SRC3:src/%.c=obj/src/%.o)
 
 APP_PATH4 = bin/$(PROJECT)/$(APP_NAME4)
-LFLAGS4 = -lmyBigChars -lmyTerm -lmySimpleComputer -L obj/src/lib$(PROJECT)
+LFLAGS4 = -lmyReadKey -lmyBigChars -lmyTerm -lmySimpleComputer -L obj/src/lib$(PROJECT)
 APP_SRC4 = src/$(APP_NAME4).c
 APP_OBJ4 = $(APP_SRC4:src/%.c=obj/src/%.o)
 
 APP_OBJS = $(APP_OBJ) $(APP_OBJ2) $(APP_OBJ3) $(APP_OBJ4)
+APP_PATHS = $(APP_PATH) $(APP_PATH2) $(APP_PATH3) $(APP_PATH4)
 
 LIB_SRC = src/lib$(PROJECT)/lib.c
 LIB_SRC2 = src/lib$(PROJECT)/myTerm.c
@@ -59,7 +60,7 @@ DEPS = $(OBJ:.o=.d) $(TEST_OBJ:.o=.d)
 DIRS = bin bin/$(PROJECT) obj obj/src obj/src/lib$(PROJECT)
 
 .PHONY: all
-all: $(DIRS) $(OBJ) $(USE_APP)
+all: $(DIRS) $(OBJ) $(APP_PATHS)
 run: all
 	./$(USE_APP)
 

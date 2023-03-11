@@ -174,14 +174,15 @@ bc_printMemory (int X, int Y, int current)
         mt_gotoXY (Y + memY, X);
       if (memX)
         my_printf (" ");
-      int value;
+      int value, command, operand;
       sc_memoryGet (mem, &value);
       if (mem == current)
         {
           mt_setfgcolor (SUN);
           mt_setbgcolor (BLUE);
         }
-      my_printf ("%c%04X", value >> 14 & 1 ? '-' : '+', value & 0x3fff);
+  	  sc_commandDecode (value, &command, &operand);
+      my_printf ("%c%02X%02X", value >> 14 & 1 ? '-' : '+', command, operand);
       if (mem == current)
         mt_clrclr ();
     }
@@ -229,8 +230,8 @@ bc_printKeys (int X, int Y)
   text keys[] = { "l  - load",
                   "s  - save",
                   "r  - run",
-                  "s  - step",
-                  "r  - reset",
+                  "t  - step",
+                  "i  - reset",
                   "F5 - accumulator",
                   "F6 - instructionCounter" };
   for (int i = 0; i < 7; i++)
