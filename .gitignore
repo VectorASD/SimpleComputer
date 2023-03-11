@@ -1,8 +1,9 @@
 # Assembly artifacts
-main
+bin/*
+obj/*
 
 # Runtime artifacts
-*.mem
+# *.mem
 
 # Prerequisites
 *.d
