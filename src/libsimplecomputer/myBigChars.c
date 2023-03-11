@@ -165,7 +165,6 @@ bc_printBox (int x1, int y1, int w, int h, text title)
 void
 bc_printMemory (int X, int Y, int current)
 {
-  bc_printBox (X, Y, 59, (MEMORY_SIZE + 9) / 10, "Memory");
   X += 2;
   Y += 2;
   for (int mem = 0; mem < MEMORY_SIZE; mem++)
@@ -190,7 +189,6 @@ bc_printMemory (int X, int Y, int current)
 void
 bc_printFlags (int X, int Y)
 {
-  bc_printBox (X, Y, 25, 1, "Flags");
   X += 2;
   Y += 2;
   char buff[12];
@@ -226,7 +224,6 @@ bc_printFlags (int X, int Y)
 void
 bc_printKeys (int X, int Y)
 {
-  bc_printBox (X, Y, 40, 8, "Keys");
   X += 2;
   Y += 2;
   text keys[] = { "l  - load",
@@ -255,7 +252,6 @@ bc_printBigNumbers (int X, int Y, int num, Color a, Color b)
 {
   if (num >= 0 && num < MEMORY_SIZE)
     sc_memoryGet (num, &num);
-  bc_printBox (X, Y, 8 * 5 + 4, 8, "");
   X += 2;
   Y += 2;
   bc_tprintbigchar (num >> 14 & 1 ? 22 : 20, X, Y, a, b);
@@ -268,6 +264,38 @@ bc_printBigNumbers (int X, int Y, int num, Color a, Color b)
         let += 2;
       bc_tprintbigchar (let * 2, X + (n + 1) * 9, Y, a, b);
     }
+}
+
+void
+bc_printAllBoxes ()
+{
+  bc_printBox (6, 3, 59, (MEMORY_SIZE + 9) / 10, "Memory");
+  bc_printBox (68, 3, 25, 1, "accumulator");
+  bc_printBox (68, 6, 25, 1, "instructionCounter");
+  bc_printBox (68, 9, 25, 1, "Operation");
+  bc_printBox (68, 12, 25, 1, "Flags");
+  bc_printBox (6, 15, 8 * 5 + 4, 8, "");
+  bc_printBox (53, 15, 40, 8, "Keys");
+}
+
+void
+bc_printAccumulator (int accumulator)
+{
+  mt_gotoXY (5, 80);
+  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+', accumulator);
+}
+
+void
+bc_printInstrCounter (int instr)
+{
+  mt_gotoXY (8, 80);
+  my_printf ("+%04x", instr);
+
+  int value, command, operand;
+  sc_memoryGet (instr, &value);
+  sc_commandDecode (value, &command, &operand);
+  mt_gotoXY (11, 79);
+  my_printf ("+%02x : %02x", command, operand);
 }
 
 void
@@ -294,12 +322,18 @@ bc_termTest ()
 
   mt_clrscr ();
 
+  bc_printAllBoxes ();
+
   int current = 44;
+  int accumulator = 0x1234;
+
   bc_printMemory (6, 3, current);
   bc_printFlags (68, 12);
   bc_printKeys (53, 15);
-  bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
+  // bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
   bc_printBigNumbers (6, 15, current, RED, SUN);
+  bc_printAccumulator (accumulator);
+  bc_printInstrCounter (0);
 
   mt_ll ();
 }

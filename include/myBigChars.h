@@ -14,4 +14,9 @@ void bc_printTable();
 void bc_tprintbigchar(uint pos, int x, int y, Color a, Color b);
 int bc_printBox(int x1, int y1, int w, int h, text title);
 void bc_printBigNumbers(int X, int Y, int num, Color a, Color b);
+
+void bc_printAllBoxes();
+void bc_printAccumulator(int accumulator);
+void bc_printInstrCounter(int instr);
+
 void bc_termTest();
