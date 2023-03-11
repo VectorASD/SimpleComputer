@@ -134,10 +134,10 @@ rk_upd_mem ()
       || (prev_mem_pos >= 0 && prev_mem_pos <= MEMORY_SIZE))
     {
       bc_printMemory (mem_pos);
-      if (mem_pos >= 0) bs_print_bigN (mem_pos);
+      if (mem_pos >= 0)
+        bs_print_bigN (mem_pos);
       if (mem_pos == instruction)
         bc_printInstrCounter (instruction, 0);
-      
     }
   if (mem_pos == -1 || prev_mem_pos == -1)
     bc_printAccumulator (accumulator, mem_pos == -1);
@@ -178,7 +178,8 @@ rk_common_mode ()
 
       if (c >= '0' && c <= '9')
         {
-          if (c == '0' && num == 0) continue;
+          if (c == '0' && num == 0)
+            continue;
           num = num << 4 | (c - '0');
           let++;
         }
