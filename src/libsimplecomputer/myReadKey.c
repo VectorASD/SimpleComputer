@@ -1,5 +1,5 @@
 #include <myReadKey.h>
-#include <stdio.h>  // stdin
+#include <stdio.h> // stdin, fgets (для ввода регистров и памяти)
 #include <stdlib.h> // exit
 #include <unistd.h> // read
 
@@ -119,6 +119,185 @@ rk_print ()
   my_printf ("  VTIME: %u\n", term.c_cc[VTIME]);
 }
 
+/*
+ * Основные мозги тут:
+ */
+
+int prev_mem_pos = 0, mem_pos = 0; // -1: аккумулятор; -2: счётчик команд
+int accumulator = 0;
+int instruction = 0;
+
+void
+rk_upd_mem ()
+{
+  if ((mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
+      || (prev_mem_pos >= 0 && prev_mem_pos <= MEMORY_SIZE))
+    {
+      bc_printMemory (mem_pos);
+      if (mem_pos >= 0) bs_print_bigN (mem_pos);
+      if (mem_pos == instruction)
+        bc_printInstrCounter (instruction, 0);
+      
+    }
+  if (mem_pos == -1 || prev_mem_pos == -1)
+    bc_printAccumulator (accumulator, mem_pos == -1);
+  if (mem_pos == -2 || prev_mem_pos == -2)
+    bc_printInstrCounter (instruction, mem_pos == -2);
+
+  prev_mem_pos = mem_pos;
+}
+
+void
+rk_clear_vvod ()
+{
+  mt_gotoXY (28, 7);
+  my_printf (
+      "                                                                ");
+  mt_gotoXY (28, 7);
+}
+
+void
+rk_common_mode ()
+{
+  rk_clear_vvod ();
+  my_printf ("Ввод: ");
+  rk_mytermrestore ();
+
+  char str[256];
+  // scanf("%s", str);
+  fgets (str, 256, stdin);
+  // my_printf("\n%u %u %u %u %u %u", str[0], str[1], str[2], str[3], str[4],
+  // str[5]);
+
+  int pos = 0, num = 0, let = 0, minus = 0;
+  char c;
+  while ((c = str[pos++]))
+    {
+      if (c >= 'A' && c <= 'Z')
+        c += ' '; // lower case
+
+      if (c >= '0' && c <= '9')
+        {
+          if (c == '0' && num == 0) continue;
+          num = num << 4 | (c - '0');
+          let++;
+        }
+      else if (c >= 'a' && c <= 'f')
+        {
+          num = num << 4 | (c - 'a' + 10);
+          let++;
+        }
+      else if (c == '-')
+        minus = 0x4000;
+      if (let == 4)
+        break;
+    }
+
+  if (let)
+    {
+      sc_commandEncode (num >> 8, num & 127, &num);
+      num |= minus;
+
+      if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
+        {
+          sc_memorySet (mem_pos, num);
+        }
+      else if (mem_pos == -1)
+        accumulator = num;
+      else if (mem_pos == -2)
+        instruction = num % MEMORY_SIZE;
+
+      rk_upd_mem ();
+    }
+  rk_mytermregime (0, 1, 1, 0, 0);
+}
+
+void
+rk_key_handler (Keys key)
+{
+  rk_clear_vvod ();
+  if (key == K_L)
+    {
+      my_printf ("Загрузка...");
+      if (sc_memoryLoad ("memory.mem"))
+        {
+          mt_gotoXY (28, 7);
+          my_printf ("Ошибка загрузки файла memory.mem");
+          return;
+        }
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("Файл memory.mem загружен удачно");
+    }
+  else if (key == K_S)
+    {
+      my_printf ("Сохранение...");
+      mt_gotoXY (28, 7);
+      if (sc_memorySave ("memory.mem"))
+        {
+          my_printf ("Ошибка сохранения файла memory.mem");
+          return;
+        }
+      my_printf ("Файл memory.mem загружен сохранён");
+    }
+  else if (key == K_UP)
+    {
+      mem_pos = mem_pos < 0 ? (mem_pos == -1 ? -2 : -1)
+                            : (mem_pos - 10 + MEMORY_SIZE) % MEMORY_SIZE;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("Up");
+    }
+  else if (key == K_LEFT)
+    {
+      mem_pos = mem_pos < 0 ? (mem_pos == -1 ? 9 : 39)
+                            : (mem_pos - 1 + MEMORY_SIZE) % MEMORY_SIZE;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("Left");
+    }
+  else if (key == K_RIGHT)
+    {
+      mem_pos = mem_pos < 0 ? (mem_pos == -1 ? 10 : 40)
+                            : (mem_pos + 1) % MEMORY_SIZE;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("Right");
+    }
+  else if (key == K_DOWN)
+    {
+      mem_pos = mem_pos < 0 ? (mem_pos == -1 ? -2 : -1)
+                            : (mem_pos + 10) % MEMORY_SIZE;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("Down");
+    }
+  else if (key == K_F5)
+    {
+      mem_pos = -1;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("F5");
+    }
+  else if (key == K_F6)
+    {
+      mem_pos = -2;
+      rk_upd_mem ();
+      mt_gotoXY (28, 7);
+      my_printf ("F6");
+    }
+  else if (key == K_ENTER)
+    {
+      rk_common_mode ();
+      rk_clear_vvod ();
+      printf ("OK");
+    }
+  else if (key != K_OTHER)
+    my_printf ("Key_num: %u", key);
+  else
+    my_printf ("Other_key");
+}
+
 void
 rk_test ()
 {
@@ -141,11 +320,7 @@ rk_test ()
     {
       Keys res;
       rk_readkey (&res);
-      mt_gotoXY (28, 7);
-      if (res != K_OTHER)
-        my_printf ("Key_num: %u   ", res);
-      else
-        my_printf ("Other_key   ");
+      rk_key_handler (res);
       if (res == K_ESC)
         break;
     }

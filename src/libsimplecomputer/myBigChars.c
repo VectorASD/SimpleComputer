@@ -163,10 +163,9 @@ bc_printBox (int x1, int y1, int w, int h, text title)
 }
 
 void
-bc_printMemory (int X, int Y, int current)
+bc_printMemory (int current)
 {
-  X += 2;
-  Y += 2;
+  int X = 8, Y = 5;
   for (int mem = 0; mem < MEMORY_SIZE; mem++)
     {
       int memX = mem % 10, memY = mem / 10;
@@ -181,17 +180,16 @@ bc_printMemory (int X, int Y, int current)
           mt_setfgcolor (SUN);
           mt_setbgcolor (BLUE);
         }
-      sc_commandDecode (value, &command, &operand);
+      sc_commandDecode (value & 0x3fff, &command, &operand);
       my_printf ("%c%02X%02X", value >> 14 & 1 ? '-' : '+', command, operand);
       if (mem == current)
         mt_clrclr ();
     }
 }
 void
-bc_printFlags (int X, int Y)
+bc_printFlags ()
 {
-  X += 2;
-  Y += 2;
+  int X = 70, Y = 14;
   char buff[12];
   byte flags[5];
   int pos = 0, value;
@@ -222,11 +220,11 @@ bc_printFlags (int X, int Y)
   mt_gotoXY (Y, X + (25 - pos) / 2);
   my_printf ("%s", buff);
 }
+
 void
-bc_printKeys (int X, int Y)
+bc_printKeys ()
 {
-  X += 2;
-  Y += 2;
+  int X = 55, Y = 17;
   text keys[] = { "l  - load",
                   "s  - save",
                   "r  - run",
@@ -256,11 +254,15 @@ bc_printBigNumbers (int X, int Y, int num, Color a, Color b)
   X += 2;
   Y += 2;
   bc_tprintbigchar (num >> 14 & 1 ? 22 : 20, X, Y, a, b);
+  int command, operand;
+  sc_commandDecode (num & 0x3fff, &command, &operand);
   for (int n = 0; n < 4; n++)
     {
-      int let = num >> ((3 - n) * 4) & 15;
-      if (!n)
-        let &= 3;
+      int let = n < 2 ? command : operand;
+      if (n & 1)
+        let &= 15;
+      else
+        let >>= 4;
       if (let > 9)
         let += 2;
       bc_tprintbigchar (let * 2, X + (n + 1) * 9, Y, a, b);
@@ -280,23 +282,44 @@ bc_printAllBoxes ()
 }
 
 void
-bc_printAccumulator (int accumulator)
+bc_printAccumulator (int accumulator, int current)
 {
+  if (current)
+    {
+      mt_setfgcolor (SUN);
+      mt_setbgcolor (BLUE);
+    }
   mt_gotoXY (5, 80);
   my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+', accumulator);
+  if (current)
+    mt_clrclr ();
 }
 
 void
-bc_printInstrCounter (int instr)
+bc_printInstrCounter (int instr, int current)
 {
+  if (current)
+    {
+      mt_setfgcolor (SUN);
+      mt_setbgcolor (BLUE);
+    }
   mt_gotoXY (8, 80);
   my_printf ("+%04x", instr);
+  if (current)
+    mt_clrclr ();
 
   int value, command, operand;
   sc_memoryGet (instr, &value);
   sc_commandDecode (value, &command, &operand);
   mt_gotoXY (11, 79);
   my_printf ("+%02x : %02x", command, operand);
+}
+
+void
+bs_print_bigN (int current)
+{
+  // bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
+  bc_printBigNumbers (6, 15, current, RED, SUN);
 }
 
 void
@@ -313,16 +336,12 @@ bc_start ()
 
   bc_printAllBoxes ();
 
-  int current = 44;
-  int accumulator = 0x1234;
-
-  bc_printMemory (6, 3, current);
-  bc_printFlags (68, 12);
-  bc_printKeys (53, 15);
-  // bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
-  bc_printBigNumbers (6, 15, current, RED, SUN);
-  bc_printAccumulator (accumulator);
-  bc_printInstrCounter (0);
+  bc_printMemory (0);
+  bc_printFlags ();
+  bc_printKeys ();
+  bs_print_bigN (0);
+  bc_printAccumulator (0, 0);
+  bc_printInstrCounter (0, 0);
 }
 
 void
