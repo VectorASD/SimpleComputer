@@ -2,12 +2,13 @@ APP_NAME = main
 APP_NAME2 = main2
 APP_NAME3 = main3
 APP_NAME4 = main4
+APP_NAME5 = main5
 LIB_NAME = libmySimpleComputer
 LIB_NAME2 = libmyTerm
 LIB_NAME3 = libmyBigChars
 LIB_NAME4 = libmyReadKey
 PROJECT = simplecomputer
-USE_APP = $(APP_PATH4)
+USE_APP = $(APP_PATH5)
 
 CFLAGS = -Wall -Werror -I include -MMD
 # Тут библиотеки линкером в обратном порядке оказывается грузятся O_o Т.е. первее будет последняя ;'-}
@@ -32,8 +33,13 @@ LFLAGS4 = -lmyReadKey -lmyBigChars -lmyTerm -lmySimpleComputer -L obj/src/lib$(P
 APP_SRC4 = src/$(APP_NAME4).c
 APP_OBJ4 = $(APP_SRC4:src/%.c=obj/src/%.o)
 
-APP_OBJS = $(APP_OBJ) $(APP_OBJ2) $(APP_OBJ3) $(APP_OBJ4)
-APP_PATHS = $(APP_PATH) $(APP_PATH2) $(APP_PATH3) $(APP_PATH4)
+APP_PATH5 = bin/$(PROJECT)/$(APP_NAME5)
+LFLAGS5 = -lmyReadKey -lmyBigChars -lmyTerm -lmySimpleComputer -L obj/src/lib$(PROJECT)
+APP_SRC5 = src/$(APP_NAME5).c
+APP_OBJ5 = $(APP_SRC5:src/%.c=obj/src/%.o)
+
+APP_OBJS = $(APP_OBJ) $(APP_OBJ2) $(APP_OBJ3) $(APP_OBJ4) $(APP_OBJ5)
+APP_PATHS = $(APP_PATH) $(APP_PATH2) $(APP_PATH3) $(APP_PATH4) $(APP_PATH5)
 
 LIB_SRC = src/lib$(PROJECT)/lib.c
 LIB_SRC2 = src/lib$(PROJECT)/myTerm.c
@@ -74,6 +80,8 @@ $(APP_PATH3): $(APP_OBJ3) $(LIBS3)
 	gcc $< -o $@ $(LFLAGS3)
 $(APP_PATH4): $(APP_OBJ4) $(LIBS4)
 	gcc $< -o $@ $(LFLAGS4)
+$(APP_PATH5): $(APP_OBJ5) $(LIBS4)
+	gcc $< -o $@ $(LFLAGS5)
 
 $(LIB_PATH): $(LIB_OBJ)
 	ar rcs $@ $^
@@ -100,4 +108,3 @@ format:
 $(DIRS):
 	@if [ ! -d $@ ] ; then echo "creating $@"; mkdir $@; fi
 	@if [ ! -d $@ ] ; then echo "$@ not created, error!"; exit 1; fi
-

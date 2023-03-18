@@ -63,6 +63,15 @@ rk_mytermsave ()
 {
   if (tcgetattr (fileno (stdin), &rk_save))
     return 1;
+  rk_save.c_lflag
+      |= ECHO; // Предохранитель на тот случай, если приложение вылетит
+  // во время разработок, то не надо будет тыкаться 3 часа носом невидимыми
+  // символами в консоль ;'-}
+  rk_save.c_lflag
+      |= ISIG; // Оказывается отсутствие этой штуки попротивнее будет,
+               // чем отсутствие ECHO, т.к. если пропинговать vk.com с
+               // сохранившейся ошибкой, то выйти никак не получится + все
+               // вкладки gedit отлетят ;'-}}}
   return 0;
 }
 
@@ -143,6 +152,7 @@ rk_upd_mem ()
     bc_printAccumulator (accumulator, mem_pos == -1);
   if (mem_pos == -2 || prev_mem_pos == -2)
     bc_printInstrCounter (instruction, mem_pos == -2);
+  bc_printFlags ();
 
   prev_mem_pos = mem_pos;
 }
@@ -169,7 +179,7 @@ rk_common_mode ()
   // my_printf("\n%u %u %u %u %u %u", str[0], str[1], str[2], str[3], str[4],
   // str[5]);
 
-  int pos = 0, num = 0, let = 0, minus = 0;
+  int pos = 0, num = 0, let = 0, minus = 0, plus = 0;
   char c;
   while ((c = str[pos++]))
     {
@@ -178,7 +188,7 @@ rk_common_mode ()
 
       if (c >= '0' && c <= '9')
         {
-          if (c == '0' && num == 0)
+          if (c == '0' && let == 0)
             continue;
           num = num << 4 | (c - '0');
           let++;
@@ -189,14 +199,20 @@ rk_common_mode ()
           let++;
         }
       else if (c == '-')
-        minus = 0x4000;
-      if (let == 4)
-        break;
+        {
+          minus = 0x4000;
+          plus = 0;
+        }
+      else if (c == '+')
+        {
+          minus = 0;
+          plus = 1;
+        }
     }
 
-  if (let)
+  if (let || minus || plus)
     {
-      sc_commandEncode (num >> 8, num & 127, &num);
+      sc_commandEncode (num >> 8 & 127, num & 127, &num);
       num |= minus;
 
       if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
@@ -206,7 +222,7 @@ rk_common_mode ()
       else if (mem_pos == -1)
         accumulator = num;
       else if (mem_pos == -2)
-        instruction = num % MEMORY_SIZE;
+        instruction = num >= MEMORY_SIZE ? MEMORY_SIZE - 1 : num < 0 ? 0 : num;
 
       rk_upd_mem ();
     }
@@ -300,7 +316,8 @@ rk_key_handler (Keys key)
 }
 
 void
-rk_test ()
+rk_test () // Только для lab04. Перенесено в main5 для дальнейшего
+           // редактирования!
 {
   // rk_print();
   if (rk_mytermsave ())

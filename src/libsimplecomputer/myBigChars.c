@@ -194,8 +194,8 @@ bc_printFlags ()
   byte flags[5];
   int pos = 0, value;
 
-  for (int i = 0; i < 5; i++)
-    sc_regSet (1 << i, 1); // костыль для проверки
+  // for (int i = 0; i < 5; i++)
+  //   sc_regSet (1 << i, 0); // костыль для проверки
 
   sc_regGet (DF, &value); // Для максимальной правдаподобности,
   flags[0] = value; // хоть руки и чешутся влупить цикл, где: reg = 1 << i
@@ -217,6 +217,8 @@ bc_printFlags ()
       }
   buff[pos] = 0;
 
+  mt_gotoXY (Y, X);
+  my_printf ("                        ");
   mt_gotoXY (Y, X + (25 - pos) / 2);
   my_printf ("%s", buff);
 }
@@ -308,7 +310,7 @@ bc_printInstrCounter (int instr, int current)
   if (current)
     mt_clrclr ();
 
-  int value, command, operand;
+  int value, command = 0, operand = 0;
   sc_memoryGet (instr, &value);
   sc_commandDecode (value, &command, &operand);
   mt_gotoXY (11, 79);

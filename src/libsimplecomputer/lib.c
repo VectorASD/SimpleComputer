@@ -101,9 +101,13 @@ int
 sc_commandDecode (int value, int *command, int *operand)
 {
   if ((value >> 14) != 0)
-    return 1; // не команда
+    {
+      sc_regSet (EF, 1);
+      return 1; // не команда
+    }
   *command = value >> 7;
   *operand = value & 127;
+  sc_regSet (EF, 0);
   return 0;
 }
 
