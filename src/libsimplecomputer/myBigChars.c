@@ -1,167 +1,366 @@
 #include <myBigChars.h>
 #include <stdio.h>
+#include <stdlib.h> // exit
 
-int bc_printA(text str) {
-    printf("\e(0%s\e(B", str);
-    return 0;
+int
+bc_printA (text str)
+{
+  my_printf ("\e(0%s\e(B", str);
+  return 0;
 }
 
-int bc_box(int x1, int y1, int w, int h) { // К сожалению автор ТЗ перепутал X и Y, а также перепутал x2, y2 с w, h, что приводит к серьёзной путанице :///
-    char str[w + 1];
-    str[w] = 0;
+int
+bc_box (int x1, int y1, int w, int h)
+{ // К сожалению автор ТЗ перепутал X и Y, а также перепутал x2, y2 с w, h, что
+  // приводит к серьёзной путанице :///
+  if (x1 < 0 || y1 < 0 || w < 1 || h < 1)
+    return 1;
+  x1 += 1;
+  y1 += 1;
+  w += 2;
+  h += 2;
+  char str[w + 1];
+  str[w] = 0;
 
-    str[0] = 'l';
-    for (int i = 1; i < w - 1; i++) str[i] = 'q';
-    str[w - 1] = 'k';
-    mt_gotoXY(y1++, x1);
-    bc_printA(str);
+  str[0] = 'l';
+  for (int i = 1; i < w - 1; i++)
+    str[i] = 'q';
+  str[w - 1] = 'k';
+  mt_gotoXY (y1++, x1);
+  bc_printA (str);
 
-    str[0] = 'x';
-    for (int i = 1; i < w - 1; i++) str[i] = ' ';
-    str[w - 1] = 'x';
-    for (int i = 2; i < h; i++) {
-        mt_gotoXY(y1++, x1);
-        bc_printA(str);
+  str[0] = 'x';
+  for (int i = 1; i < w - 1; i++)
+    str[i] = ' ';
+  str[w - 1] = 'x';
+  for (int i = 2; i < h; i++)
+    {
+      mt_gotoXY (y1++, x1);
+      bc_printA (str);
     }
 
-    str[0] = 'm';
-    for (int i = 1; i < w - 1; i++) str[i] = 'q';
-    str[w - 1] = 'j';
-    mt_gotoXY(y1, x1);
-    bc_printA(str);
+  str[0] = 'm';
+  for (int i = 1; i < w - 1; i++)
+    str[i] = 'q';
+  str[w - 1] = 'j';
+  mt_gotoXY (y1, x1);
+  bc_printA (str);
 
-    return 0;
+  return 0;
 }
 
-int bc_printbigchar(int c[2], int x, int y, Color a, Color b) {
-    mt_setfgcolor(a);
-    mt_setbgcolor(b);
-    char str[9];
-    str[8] = 0;
+int
+bc_printbigchar (int c[2], int x, int y, Color a, Color b)
+{
+  mt_setfgcolor (a);
+  mt_setbgcolor (b);
+  char str[9];
+  str[8] = 0;
+  int pix;
 
-    for (int i = 0; i < 8; i++) {
-        mt_gotoXY(y++, x);
-        byte B = i < 4 ? c[0] >> (8 * (3 - i)) : c[1] >> (8 * (7 - i));
-        for (int j = 0; j < 8; j++) str[j] = B >> (7 - j) & 1 ? 'a' : ' ';
-        bc_printA(str);
+  for (int i = 0; i < 8; i++)
+    {
+      mt_gotoXY (y++, x);
+      for (int j = 0; j < 8; j++)
+        {
+          bc_getbigcharpos (c, j, i, &pix);
+          str[j] = pix ? 'a' : ' ';
+        }
+      bc_printA (str);
     }
 
-    mt_clrclr();
-    return 0;
+  mt_clrclr ();
+  return 0;
 }
 
-// Вообще не понял смысловую нагрузку этих двух функция и зачем вообще тут *big + звёздочки не там стояли
-int bc_setbigcharpos(int *big, int x, int y, int *value) {
-    *value = x << 16 | y;
-    return 0;
+int
+bc_setbigcharpos (int *big, int x, int y, int value)
+{
+  if (x < 0 || x > 7 || y < 0 || y > 7)
+    return 1;
+  if (value != 0 && value != 1)
+    return 2;
+  int *num = y < 4 ? big : big + 1;
+  int bit = (3 - (y & 3)) << 3 | (7 - x);
+  if (((*num) >> bit & 1) != value)
+    (*num) ^= 1 << bit;
+  return 0;
 }
-int bc_getbigcharpos(int *big, int *x, int *y, int value) {
-    *x = value >> 16;
-    *y = value & 0xffff;
-    return 0;
+int
+bc_getbigcharpos (int *big, int x, int y, int *value)
+{
+  *value = 0;
+  if (x < 0 || x > 7 || y < 0 || y > 7)
+    return 1;
+  byte B = y < 4 ? big[0] >> ((3 - y) << 3) : big[1] >> ((7 - y) << 3);
+  *value = B >> (7 - x) & 1;
+  return 0;
 }
 
-int bc_bigcharwrite(int fd, int *big, int count) { // Зачем fd ? FILE* без звёздочки будет не правильно передавать...
-    FILE *file;
-    if ((file = fopen("glyph_base.asd", "wb")) == NULL) return 1;
-    if (fwrite(big, sizeof(int) * 2, count, file) != count) return 2;
-    if (fclose(file) == EOF) return 3;
-    return 0;
+int
+bc_bigcharwrite (int fd, int *big, int count)
+{ // Зачем fd ? FILE* без звёздочки будет не правильно передавать...
+  FILE *file;
+  if ((file = fopen ("glyph_base.asd", "wb")) == NULL)
+    return 1;
+  if (fwrite (big, sizeof (int) * 2, count, file) != count)
+    return 2;
+  if (fclose (file) == EOF)
+    return 3;
+  return 0;
 }
-int bc_bigcharread(int fd, int *big, int need_count, int *count) {
-    FILE *file;
-    *count = 0;
-    if ((file = fopen("glyph_base.asd", "rb")) == NULL) return 1;
-    int finded = fread(big, sizeof(int) * 2, need_count, file);
-    if (fclose(file) == EOF) return 3;
-    *count = finded;
-    return 0;
+int
+bc_bigcharread (int fd, int *big, int need_count, int *count)
+{
+  FILE *file;
+  *count = 0;
+  if ((file = fopen ("glyph_base.asd", "rb")) == NULL)
+    return 1;
+  int finded = fread (big, sizeof (int) * 2, need_count, file);
+  if (fclose (file) == EOF)
+    return 3;
+  *count = finded;
+  return 0;
 }
 
 //
 // Далее идут мои методы, т.е. те, что не описаны в ТЗ
 //
 
-void sc_printTable() {
-    for (int i = 32; i < 128; i++) {
-        printf("%c -> \e(0%c\e(B", i, i);
-        printf(i % 16 == 15 ? "\n" : "    ");
+void
+bc_printTable ()
+{
+  for (int i = 32; i < 128; i++)
+    {
+      my_printf ("%c -> \e(0%c\e(B", i, i);
+      my_printf (i % 16 == 15 ? "\n" : "    ");
     }
 }
 
 int glyph_table[64]; // приватная таблица символов
 
-void load_glyph(FT_Face face, uint code, uint pos) {
-    if (FT_Load_Char(face, code, FT_LOAD_RENDER)) {
-        printf("Не удаётся загрузить глиф 0x%x\n", code);
-        if (code == '?') exit(9);
-        return load_glyph(face, '?', pos);
+void
+bc_tprintbigchar (uint pos, int x, int y, Color a, Color b)
+{
+  int c[] = { glyph_table[pos], glyph_table[pos + 1] };
+  bc_printbigchar (c, x, y, a, b);
+}
+
+int
+bc_printBox (int x1, int y1, int w, int h, text title)
+{
+  int res = bc_box (x1, y1, w, h);
+  if (res)
+    return res;
+
+  int len = str_len (title);
+  if (len)
+    {
+      mt_gotoXY (y1 + 1, x1 + (w - len) / 2 + 1);
+      my_printf (" %s ", title);
     }
-    FT_Bitmap bitmap = face->glyph->bitmap;
-    int width = bitmap.width, rows = bitmap.rows;
-    int shift = (8 - rows) / 2;
-    int A = 0, B = 0;
-    for (int y = -shift; y < 8 - shift; y++) {
-        byte b = 0;
-        for (int x = -1; x < 7; x++) {
-            byte alpha = x < 0 || x >= width || y >= rows ? 0 : bitmap.buffer[x + y * width];
-            byte bit = alpha > 35;
-            if (bit) b |= 1 << (6 - x);
-            //printf("%u ", bit);
+  return 0;
+}
+
+void
+bc_printMemory (int current)
+{
+  int X = 8, Y = 5;
+  for (int mem = 0; mem < MEMORY_SIZE; mem++)
+    {
+      int memX = mem % 10, memY = mem / 10;
+      if (memX == 0)
+        mt_gotoXY (Y + memY, X);
+      if (memX)
+        my_printf (" ");
+      int value, command, operand;
+      sc_memoryGet (mem, &value);
+      if (mem == current)
+        {
+          mt_setfgcolor (SUN);
+          mt_setbgcolor (BLUE);
         }
-        int norm_y = y + shift;
-        if (norm_y < 4)
-            A |= b << (8 * (3 - norm_y));
-        else
-            B |= b << (8 * (7 - norm_y));
-        //printf("\n");
+      sc_commandDecode (value & 0x3fff, &command, &operand);
+      my_printf ("%c%02X%02X", value >> 14 & 1 ? '-' : '+', command, operand);
+      if (mem == current)
+        mt_clrclr ();
     }
-    //printf("%x %x\n", A, B);
-    glyph_table[pos] = A;
-    glyph_table[pos + 1] = B;
+}
+void
+bc_printFlags ()
+{
+  int X = 70, Y = 14;
+  char buff[12];
+  byte flags[5];
+  int pos = 0, value;
+
+  for (int i = 0; i < 5; i++)
+    sc_regSet (1 << i, 1); // костыль для проверки
+
+  sc_regGet (DF, &value); // Для максимальной правдаподобности,
+  flags[0] = value; // хоть руки и чешутся влупить цикл, где: reg = 1 << i
+  sc_regGet (OF, &value);
+  flags[1] = value;
+  sc_regGet (MF, &value);
+  flags[2] = value;
+  sc_regGet (TF, &value);
+  flags[3] = value;
+  sc_regGet (EF, &value);
+  flags[4] = value;
+
+  for (int i = 0; i < 5; i++)
+    if (flags[i])
+      {
+        if (pos)
+          buff[pos++] = ' ';
+        buff[pos++] = "DOMTE"[i];
+      }
+  buff[pos] = 0;
+
+  mt_gotoXY (Y, X + (25 - pos) / 2);
+  my_printf ("%s", buff);
 }
 
-void bc_glyphs_loader() {
-    FT_Library ft; // в freetype/freetype.h на 1072 строчке описана эта структура
-    FT_Face face;
-
-    if (FT_Init_FreeType(&ft)) {
-        printf("Не удаётся инициализировать FreeType библиотеку\n");
-        exit(7);
+void
+bc_printKeys ()
+{
+  int X = 55, Y = 17;
+  text keys[] = { "l  - load",
+                  "s  - save",
+                  "r  - run",
+                  "t  - step",
+                  "i  - reset",
+                  "F5 - accumulator",
+                  "F6 - instructionCounter" };
+  for (int i = 0; i < 7; i++)
+    {
+      mt_gotoXY (Y + i, X);
+      my_printf ("%s", keys[i]);
     }
-    if (FT_New_Face(ft, "fonts/CodenameCoderFree4F-Bold.ttf", 0, &face)) {
-        printf("Не удаётся загрузить шрифт\n");
-        exit(8);
-    }
-
-    FT_Set_Pixel_Sizes(face, 0, 13); // 13 размер для ttf воспринимается, как 8 пикселей в высоту и 6 в ширину
-    for (int i = 0; i < 10; i++) load_glyph(face, '0' + i, i * 2);
-    load_glyph(face, '+', 20);
-    load_glyph(face, '-', 22);
-
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
 }
 
-void bc_tprintbigchar(uint pos, int x, int y, Color a, Color b) {
-    int c[] = {glyph_table[pos], glyph_table[pos + 1]};
-    bc_printbigchar(c, x, y, a, b);
+/*
+Расположение символов в таблице глифов:
+ 0.. 1   0   |  2.. 3   1   |  4.. 5   2   |  6.. 7   3   |  8.. 9   4
+10..11   5   | 12..13   6   | 14..15   7   | 16..17   8   | 18..19   9
+20..21   +   | 22..23   -   | 24..25   a   | 26..27   b   | 28..29   c
+30..31   d   | 32..33   e   | 34..35   f   | 36..63   reserved
+*/
+void
+bc_printBigNumbers (int X, int Y, int num, Color a, Color b)
+{
+  if (num >= 0 && num < MEMORY_SIZE)
+    sc_memoryGet (num, &num);
+  X += 2;
+  Y += 2;
+  bc_tprintbigchar (num >> 14 & 1 ? 22 : 20, X, Y, a, b);
+  int command, operand;
+  sc_commandDecode (num & 0x3fff, &command, &operand);
+  for (int n = 0; n < 4; n++)
+    {
+      int let = n < 2 ? command : operand;
+      if (n & 1)
+        let &= 15;
+      else
+        let >>= 4;
+      if (let > 9)
+        let += 2;
+      bc_tprintbigchar (let * 2, X + (n + 1) * 9, Y, a, b);
+    }
 }
 
-void sc_termTest() {
-    bc_glyphs_loader();
-    if (bc_bigcharwrite(0, glyph_table, 12)) exit(1);
-    for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
-    byte terminate = 0; // Если поставить не 0, то все глифы будут испорчены, т.е. действительно файл помнит символы как надо ;'-}
-    if (!terminate) {
-        int count = 0;
-        if (bc_bigcharread(0, glyph_table, 1000, &count)) exit(2);
-        if (count != 12) exit(3);
+void
+bc_printAllBoxes ()
+{
+  bc_printBox (6, 3, 59, (MEMORY_SIZE + 9) / 10, "Memory");
+  bc_printBox (68, 3, 25, 1, "accumulator");
+  bc_printBox (68, 6, 25, 1, "instructionCounter");
+  bc_printBox (68, 9, 25, 1, "Operation");
+  bc_printBox (68, 12, 25, 1, "Flags");
+  bc_printBox (6, 15, 8 * 5 + 4, 8, "");
+  bc_printBox (53, 15, 40, 8, "Keys");
+}
+
+void
+bc_printAccumulator (int accumulator, int current)
+{
+  if (current)
+    {
+      mt_setfgcolor (SUN);
+      mt_setbgcolor (BLUE);
     }
-    //sc_printTable();
-    mt_clrscr();
-    bc_box(5, 3, 8 * 12 + 2, 8 * 2 + 4);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2, 6 + i * 8, 4, RED, SUN);
-    for (int i = 0; i < 12; i++) bc_tprintbigchar(i * 2 + 1, 6 + i * 8, 14, RED, SUN); // rusty glyphs
-    mt_ll();
+  mt_gotoXY (5, 80);
+  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+', accumulator);
+  if (current)
+    mt_clrclr ();
+}
+
+void
+bc_printInstrCounter (int instr, int current)
+{
+  if (current)
+    {
+      mt_setfgcolor (SUN);
+      mt_setbgcolor (BLUE);
+    }
+  mt_gotoXY (8, 80);
+  my_printf ("+%04x", instr);
+  if (current)
+    mt_clrclr ();
+
+  int value, command, operand;
+  sc_memoryGet (instr, &value);
+  sc_commandDecode (value, &command, &operand);
+  mt_gotoXY (11, 79);
+  my_printf ("+%02x : %02x", command, operand);
+}
+
+void
+bs_print_bigN (int current)
+{
+  // bc_printBigNumbers (68, 0, 0b111010000101111, WHITE, BLUE);
+  bc_printBigNumbers (6, 15, current, RED, SUN);
+}
+
+void
+bc_start ()
+{
+  int count;
+  if (bc_bigcharread (0, glyph_table, 1000, &count))
+    {
+      my_printf ("Не обнаружен glyph_base.asd файл!\n");
+      exit (2);
+    }
+  if (count != 18)
+    exit (3);
+
+  bc_printAllBoxes ();
+
+  bc_printMemory (0);
+  bc_printFlags ();
+  bc_printKeys ();
+  bs_print_bigN (0);
+  bc_printAccumulator (0, 0);
+  bc_printInstrCounter (0, 0);
+}
+
+void
+bc_termTest ()
+{
+  if (sc_memoryLoad ("memory.mem"))
+    {
+      my_printf ("Ошибка загрузки из файла\n");
+      return;
+    }
+  else
+    my_printf ("Файл загрузился удачно\n\n");
+
+  // if (bc_bigcharwrite(0, glyph_table, 18)) exit(1);
+  // for (int i = 0; i < 64; i++) glyph_table[i] = i * 0x1792231;
+
+  // bc_printTable();
+
+  mt_clrscr ();
+  bc_start ();
+  mt_ll ();
 }

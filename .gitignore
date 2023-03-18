@@ -1,10 +1,9 @@
 # Assembly artifacts
-main
+bin/*
+obj/*
 
 # Runtime artifacts
-*.mem
-freetype-2.12.1/*
-*.asd
+# *.mem
 
 # Prerequisites
 *.d
