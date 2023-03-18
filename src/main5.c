@@ -5,28 +5,34 @@
 #include <signal.h>
 #include <unistd.h> // alarm
 
-int ALU(int command, int operand) {
+int
+ALU (int command, int operand)
+{
   return 0;
 }
 
-void StopCU() {
-  alarm(0);
-  rk_upd_mem();
+void
+StopCU ()
+{
+  alarm (0);
+  rk_upd_mem ();
 }
 
-int CU() {
+int
+CU ()
+{
   int value, command, operand;
   sc_memoryGet (instruction, &value);
-  if (sc_commandDecode (value, &command, &operand)) {
-    sc_regSet(TF, 1);
-    return 1;
-  }
-  
-  
-  
-  
-  if (instruction == MEMORY_SIZE - 1) sc_regSet(TF, 1);
-  else instruction += 1;
+  if (sc_commandDecode (value, &command, &operand))
+    {
+      sc_regSet (TF, 1);
+      return 1;
+    }
+
+  if (instruction == MEMORY_SIZE - 1)
+    sc_regSet (TF, 1);
+  else
+    instruction += 1;
   mem_pos = instruction;
   return 0;
 }
@@ -39,11 +45,12 @@ signalCallback (int signal)
     case SIGALRM:
       // mt_gotoXY (1, 1);
       // my_printf ("ALARM\n");
-      CU();
+      CU ();
       int ignor;
-      sc_regGet(TF, &ignor);
-      if (ignor) alarm(0);
-      rk_upd_mem();
+      sc_regGet (TF, &ignor);
+      if (ignor)
+        alarm (0);
+      rk_upd_mem ();
       break;
     case SIGUSR1: // reset'илка
       // mt_gotoXY (1, 1);

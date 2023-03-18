@@ -2,8 +2,8 @@
 #include <signal.h>
 #include <stdio.h> // stdin, fgets (для ввода регистров и памяти)
 #include <stdlib.h> // exit
-#include <unistd.h> // read, raise
 #include <sys/time.h>
+#include <unistd.h> // read, raise
 
 byte
 upper_comparer (char *buff, text right)
@@ -271,15 +271,17 @@ rk_key_handler (Keys key)
         }
       my_printf ("Файл memory.mem сохранён удачно");
     }
-  else if (key == K_R) {
-    sc_regSet (TF, 0);
-    struct itimerval nval, oval;
-    nval.it_interval.tv_sec = 0;
-    nval.it_interval.tv_usec = 100000;
-    nval.it_value.tv_sec = 0;
-    nval.it_value.tv_usec = 1;
-    setitimer (ITIMER_REAL, &nval, &oval);
-  } else if (key == K_T)
+  else if (key == K_R)
+    {
+      sc_regSet (TF, 0);
+      struct itimerval nval, oval;
+      nval.it_interval.tv_sec = 0;
+      nval.it_interval.tv_usec = 100000;
+      nval.it_value.tv_sec = 0;
+      nval.it_value.tv_usec = 1;
+      setitimer (ITIMER_REAL, &nval, &oval);
+    }
+  else if (key == K_T)
     raise (SIGALRM);
   else if (key == K_I)
     raise (SIGUSR1);
