@@ -227,14 +227,15 @@ void
 bc_printKeys ()
 {
   int X = 55, Y = 17;
-  text keys[] = { "l  - load",
-                  "s  - save",
-                  "r  - run",
-                  "t  - step",
-                  "i  - reset",
-                  "F5 - accumulator",
-                  "F6 - instructionCounter" };
-  for (int i = 0; i < 7; i++)
+  text keys[] = { "l   - load          enter  - edit",
+                  "s   - save          arrows - move",
+                  "r   - run",
+                  "t   - step",
+                  "i   - reset",
+                  "F5  - accumulator",
+                  "F6  - instructionCounter",
+                  "ESC - leave" };
+  for (int i = 0; i < 8; i++)
     {
       mt_gotoXY (Y + i, X);
       my_printf ("%s", keys[i]);
@@ -292,7 +293,8 @@ bc_printAccumulator (int accumulator, int current)
       mt_setbgcolor (BLUE);
     }
   mt_gotoXY (5, 80);
-  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+', accumulator);
+  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+',
+             accumulator & 0x3fff);
   if (current)
     mt_clrclr ();
 }
