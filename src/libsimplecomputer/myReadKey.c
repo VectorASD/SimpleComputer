@@ -1,7 +1,9 @@
 #include <myReadKey.h>
+#include <signal.h>
 #include <stdio.h> // stdin, fgets (для ввода регистров и памяти)
 #include <stdlib.h> // exit
-#include <unistd.h> // read
+#include <unistd.h> // read, raise
+#include <sys/time.h>
 
 byte
 upper_comparer (char *buff, text right)
@@ -145,16 +147,28 @@ rk_upd_mem ()
       bc_printMemory (mem_pos);
       if (mem_pos >= 0)
         bs_print_bigN (mem_pos);
-      if (mem_pos == instruction)
-        bc_printInstrCounter (instruction, 0);
+      // if (mem_pos == instruction)
+      //   bc_printInstrCounter (instruction, 0);
     }
-  if (mem_pos == -1 || prev_mem_pos == -1)
-    bc_printAccumulator (accumulator, mem_pos == -1);
-  if (mem_pos == -2 || prev_mem_pos == -2)
-    bc_printInstrCounter (instruction, mem_pos == -2);
+  // if (mem_pos == -1 || prev_mem_pos == -1)
+  bc_printAccumulator (accumulator, mem_pos == -1);
+  // if (mem_pos == -2 || prev_mem_pos == -2)
+  bc_printInstrCounter (instruction, mem_pos == -2);
   bc_printFlags ();
 
   prev_mem_pos = mem_pos;
+  mt_gotoXY (28, 7);
+}
+
+void
+rk_clear ()
+{
+  accumulator = 0;
+  instruction = 0;
+  sc_regInit ();
+  sc_regSet (TF, 1);
+  mem_pos = 0;
+  rk_upd_mem ();
 }
 
 void
@@ -255,8 +269,20 @@ rk_key_handler (Keys key)
           my_printf ("Ошибка сохранения файла memory.mem");
           return;
         }
-      my_printf ("Файл memory.mem загружен сохранён");
+      my_printf ("Файл memory.mem сохранён удачно");
     }
+  else if (key == K_R) {
+    sc_regSet (TF, 0);
+    struct itimerval nval, oval;
+    nval.it_interval.tv_sec = 0;
+    nval.it_interval.tv_usec = 100000;
+    nval.it_value.tv_sec = 0;
+    nval.it_value.tv_usec = 1;
+    setitimer (ITIMER_REAL, &nval, &oval);
+  } else if (key == K_T)
+    raise (SIGALRM);
+  else if (key == K_I)
+    raise (SIGUSR1);
   else if (key == K_UP)
     {
       mem_pos = mem_pos < 0 ? (mem_pos == -1 ? -2 : -1)
@@ -309,6 +335,8 @@ rk_key_handler (Keys key)
       rk_clear_vvod ();
       printf ("OK");
     }
+  else if (key == K_ESC)
+    my_printf ("Goodbye");
   else if (key != K_OTHER)
     my_printf ("Key_num: %u", key);
   else

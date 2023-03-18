@@ -2,6 +2,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <signal.h>
+#include <unistd.h> // alarm
+
+int ALU(int command, int operand) {
+  return 0;
+}
+
+void StopCU() {
+  alarm(0);
+  rk_upd_mem();
+}
+
+int CU() {
+  int value, command, operand;
+  sc_memoryGet (instruction, &value);
+  if (sc_commandDecode (value, &command, &operand)) {
+    sc_regSet(TF, 1);
+    return 1;
+  }
+  
+  
+  
+  
+  if (instruction == MEMORY_SIZE - 1) sc_regSet(TF, 1);
+  else instruction += 1;
+  mem_pos = instruction;
+  return 0;
+}
+
+void
+signalCallback (int signal)
+{
+  switch (signal)
+    {
+    case SIGALRM:
+      // mt_gotoXY (1, 1);
+      // my_printf ("ALARM\n");
+      CU();
+      int ignor;
+      sc_regGet(TF, &ignor);
+      if (ignor) alarm(0);
+      rk_upd_mem();
+      break;
+    case SIGUSR1: // reset'илка
+      // mt_gotoXY (1, 1);
+      // my_printf ("SIGUSR1");
+      alarm (0);
+      rk_clear ();
+      break;
+    default:
+      break;
+    }
+}
+
 int
 main (int argc, char **args)
 {
@@ -23,6 +77,8 @@ main (int argc, char **args)
 
   sc_regSet (TF, 1); // Только флаг игнора тактов
   bc_start ();
+  signal (SIGALRM, signalCallback);
+  signal (SIGUSR1, signalCallback);
 
   mt_gotoXY (27, 7);
   my_printf ("Input\\Output:");
