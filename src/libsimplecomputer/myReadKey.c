@@ -168,6 +168,7 @@ rk_clear ()
   sc_regInit ();
   sc_regSet (TF, 1);
   mem_pos = 0;
+  sc_memoryInit ();
   rk_upd_mem ();
 }
 
@@ -178,6 +179,26 @@ rk_clear_vvod ()
   my_printf (
       "                                                                ");
   mt_gotoXY (28, 7);
+}
+
+char str_vvod_buff[256];
+
+text
+rk_str_common_mode ()
+{
+  char *name = str_vvod_buff;
+
+  rk_mytermrestore ();
+  fgets (name, 256, stdin);
+  // my_printf("%u %u %u %u\n", name[0], name[1], name[2], name[3]);
+
+  int pos = 0;
+  while (name[pos] != '\n')
+    pos++;
+  name[pos] = 0;
+
+  rk_mytermregime (0, 1, 1, 0, 0);
+  return name;
 }
 
 int
@@ -231,7 +252,7 @@ rk_common_mode (int base16)
       if (base16)
         sc_commandEncode (num >> 8 & 127, num & 127, &num);
       else if (num > 0x3fff)
-        num |= 0xffff;
+        num |= 0xffff; // Смотрите команду READ в УУ
       num |= minus;
       rk_mytermregime (0, 1, 1, 0, 0);
       return num;
@@ -254,33 +275,43 @@ apply_vvod (int num)
   rk_upd_mem ();
 }
 
+text default_name = "custom.mem"; // "memory.mem";
+
 int
 rk_key_handler (Keys key)
 {
   rk_clear_vvod ();
   if (key == K_L)
     {
-      my_printf ("Загрузка...");
-      if (sc_memoryLoad ("memory.mem"))
+      my_printf ("Загрузка... Name: ");
+      text name = rk_str_common_mode ();
+      if (name[0] == 0)
+        name = default_name;
+
+      if (sc_memoryLoad (name))
         {
           mt_gotoXY (28, 7);
-          my_printf ("Ошибка загрузки файла memory.mem");
+          my_printf ("Ошибка загрузки файла %s", name);
           return 0;
         }
       rk_upd_mem ();
       mt_gotoXY (28, 7);
-      my_printf ("Файл memory.mem загружен удачно");
+      my_printf ("Файл %s загружен удачно", name);
     }
   else if (key == K_S)
     {
-      my_printf ("Сохранение...");
+      my_printf ("Сохранение... Name: ");
+      text name = rk_str_common_mode ();
+      if (name[0] == 0)
+        name = default_name;
+
       mt_gotoXY (28, 7);
-      if (sc_memorySave ("memory.mem"))
+      if (sc_memorySave (name))
         {
-          my_printf ("Ошибка сохранения файла memory.mem");
+          my_printf ("Ошибка сохранения файла %s", name);
           return 0;
         }
-      my_printf ("Файл memory.mem сохранён удачно");
+      my_printf ("Файл %s сохранён удачно", name);
     }
   else if (key == K_R)
     {

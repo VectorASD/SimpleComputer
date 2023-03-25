@@ -5,11 +5,31 @@
 #include <signal.h>
 #include <unistd.h> // alarm
 
+/* Сводка по файлам памяти:
+memory.mem - первый файлик памяти, что доказывает работоспособность команд:
+        READ, WRITE, LOAD, STORE, ADD, SUB, DIVIDE, MUL, MOD, JUMP, HALT.
+        Нет только JNEG и JZ, и своих/пользовательских MOVA и MOVR.
+        MOD по сути тоже кастомный, но без него больно.
+
+        Вводим числа 'a' и 'b', получаем a+b, a-b, a//b, a%b, a*b
+
+custom.mem - как раз проверяет команды:
+        JNEG, JZ, MOVA и MOVR в полевых условиях.
+        Как раз тут показывается вся сила командной работы DIV и MOD. ;'-}
+
+        Вводим число 'a' и 'b', получаем в BIG-ENDIAN порядке символы 'a' числа
+в системе счисления 'b'. Умный вариант с BIG-ENDIAN в отличие от простого
+варианта little-endian базируется на массиве длины 15. ;'-}
+
+        Не хватает команд ADDC и SUBC, чтобы в памяти += 1 и -= 1
+соответственно, но обойдусь.
+*/
+
 /* Правила возвратных значений ALU:
-> 1: ошибка
+>= 20: ошибка
 == 1: ALU ничего не делает
-< 1: CU проворачивает условный переход, предварительно убрав минус из
-возвратного значения.
+<= 0: CU проворачивает условный переход, предварительно убрав минус из
+вернутого значения.
 */
 int
 ALU (int command, int operand)
@@ -19,41 +39,33 @@ ALU (int command, int operand)
     {
     case 0x30: // ADD
       if (sc_memoryGet (operand, &value))
-        {
-          sc_regSet (TF, 1);
-          return 5;
-        }
+        return 20;
       accumulator += value;
       break;
     case 0x31: // SUB
       if (sc_memoryGet (operand, &value))
-        {
-          sc_regSet (TF, 1);
-          return 6;
-        }
+        return 21;
       accumulator -= value;
       break;
     case 0x32: // DIVIDE
       if (sc_memoryGet (operand, &value))
-        {
-          sc_regSet (TF, 1);
-          return 7;
-        }
+        return 22;
       if (value == 0)
         {
           sc_regSet (DF, 1); // Низя делить на н0лик ;'-}}}
-          sc_regSet (TF, 1);
-          return 8;
+          return 23;
         }
       accumulator /= value;
       break;
     case 0x33: // MUL
       if (sc_memoryGet (operand, &value))
-        {
-          sc_regSet (TF, 1);
-          return 9;
-        }
+        return 24;
       accumulator *= value;
+      break;
+    case 0x34: // MOD (моя прееелееесть!)
+      if (sc_memoryGet (operand, &value))
+        return 25;
+      accumulator %= value;
       break;
     case 0x41: // JNEG
       if (accumulator < 0)
@@ -153,10 +165,7 @@ CU ()
   int value, command, operand, err;
   sc_memoryGet (instruction, &value);
   if (sc_commandDecode (value, &command, &operand))
-    {
-      sc_regSet (TF, 1);
-      return 1;
-    }
+    return 1;
 
   int next_inst = instruction + 1;
 
@@ -165,49 +174,40 @@ CU ()
     // 1x
     case 0x10: // READ
       if (comm_read (operand))
-        {
-          sc_regSet (TF, 1);
-          return 10;
-        }
+        return 4;
       break;
     case 0x11: // WRITE
       if (comm_write (operand))
-        {
-          sc_regSet (TF, 1);
-          return 11;
-        }
+        return 5;
       break;
     // 2x
     case 0x20: // LOAD
       if (sc_memoryGet (operand, &accumulator))
-        {
-          sc_regSet (TF, 1);
-          return 2;
-        }
+        return 6;
       break;
     case 0x21: // STORE
       if (sc_memorySet (operand, accumulator))
-        {
-          sc_regSet (TF, 1);
-          return 3;
-        }
+        return 7;
       break;
     // 3x
     case 0x30: // ADD
     case 0x31: // SUB
     case 0x32: // DIVIDE
     case 0x33: // MUL
-      err = ALU (operand, command);
-      if (err)
+    case 0x34: // MOD (моя прееелееесть!)
+      err = ALU (command, operand);
+      if (err > 1)
         return err;
+      if (err <= 0)
+        next_inst = -err;
       break;
     // 4x
     case 0x40: // JUMP
-      next_inst = command;
+      next_inst = operand;
       break;
     case 0x41: // JNEG
     case 0x42: // JZ
-      err = ALU (operand, command);
+      err = ALU (command, operand);
       if (err > 1)
         return err;
       if (err <= 0)
@@ -215,26 +215,38 @@ CU ()
       break;
     case 0x43: // HALT
       sc_regSet (TF, 1);
+      next_inst = instruction;
       break;
-    // my
-    case 0x65: // ADDC
+    // my (7x). Т.к. можно было выбрать любой, то я выбираю умышленно конкретно
+    // те 2, что позволяют работать с массивами ;'-} Опыт позволяет быстро
+    // определить, какая команда это мне и позволяет проворачивать ;'-} Он же
+    // (опыт) подсказывает, что на деле очень не хватает LOADR и SAVER
+    // (названия с неба взял),
+    //     чтобы вместо адреса ячейки я указывал адрес ячейки адреса ячейки :/
+    case 0x71: // MOVA
+      if (sc_memoryGet (operand, &value))
+        return 8;
+      if (sc_memorySet (accumulator, value))
+        return 9;
+      break;
+    case 0x72: // MOVR
+      if (sc_memoryGet (accumulator, &value))
+        return 10;
+      if (sc_memorySet (operand, value))
+        return 11;
       break;
     default:
-      sc_memorySet (20, flags);
       sc_regSet (EF, 1);
-      sc_regSet (TF, 1);
-      sc_regGet (EF, &value);
-      sc_memorySet (22, value); // dbg
-      sc_memorySet (21, flags); // dbg
-      return 4;
+      return 2;
     }
 
-  if (instruction == MEMORY_SIZE - 1)
+  if (next_inst >= MEMORY_SIZE || next_inst < 0)
     {
-      instruction = 0;
-      sc_regSet (TF, 1);
+      sc_regSet (MF, 1);
+      return 3;
     }
-  else if (next_inst < 0 || next_inst >= MEMORY_SIZE)
+
+  if (next_inst < 0 || next_inst >= MEMORY_SIZE)
     sc_regSet (OF, 1);
   else
     instruction = next_inst;
@@ -273,7 +285,8 @@ signalCallback (int signal)
           alarm (0);
           break;
         }
-      CU ();
+      if (CU ())
+        sc_regSet (TF, 1);
       // mt_gotoXY (1, 1);
       // my_printf ("flags: %u     ", flags);
       int ignor;
