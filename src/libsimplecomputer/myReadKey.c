@@ -1,7 +1,9 @@
 #include <myReadKey.h>
+#include <signal.h>
 #include <stdio.h> // stdin, fgets (для ввода регистров и памяти)
 #include <stdlib.h> // exit
-#include <unistd.h> // read
+#include <sys/time.h>
+#include <unistd.h> // read, raise
 
 byte
 upper_comparer (char *buff, text right)
@@ -63,6 +65,15 @@ rk_mytermsave ()
 {
   if (tcgetattr (fileno (stdin), &rk_save))
     return 1;
+  rk_save.c_lflag
+      |= ECHO; // Предохранитель на тот случай, если приложение вылетит
+  // во время разработок, то не надо будет тыкаться 3 часа носом невидимыми
+  // символами в консоль ;'-}
+  rk_save.c_lflag
+      |= ISIG; // Оказывается отсутствие этой штуки попротивнее будет,
+               // чем отсутствие ECHO, т.к. если пропинговать vk.com с
+               // сохранившейся ошибкой, то выйти никак не получится + все
+               // вкладки gedit отлетят ;'-}}}
   return 0;
 }
 
@@ -136,15 +147,29 @@ rk_upd_mem ()
       bc_printMemory (mem_pos);
       if (mem_pos >= 0)
         bs_print_bigN (mem_pos);
-      if (mem_pos == instruction)
-        bc_printInstrCounter (instruction, 0);
+      // if (mem_pos == instruction)
+      //   bc_printInstrCounter (instruction, 0);
     }
-  if (mem_pos == -1 || prev_mem_pos == -1)
-    bc_printAccumulator (accumulator, mem_pos == -1);
-  if (mem_pos == -2 || prev_mem_pos == -2)
-    bc_printInstrCounter (instruction, mem_pos == -2);
+  // if (mem_pos == -1 || prev_mem_pos == -1)
+  bc_printAccumulator (accumulator, mem_pos == -1);
+  // if (mem_pos == -2 || prev_mem_pos == -2)
+  bc_printInstrCounter (instruction, mem_pos == -2);
+  bc_printFlags ();
 
   prev_mem_pos = mem_pos;
+  mt_gotoXY (28, 7);
+}
+
+void
+rk_clear ()
+{
+  accumulator = 0;
+  instruction = 0;
+  sc_regInit ();
+  sc_regSet (TF, 1);
+  mem_pos = 0;
+  sc_memoryInit ();
+  rk_upd_mem ();
 }
 
 void
@@ -156,11 +181,29 @@ rk_clear_vvod ()
   mt_gotoXY (28, 7);
 }
 
-void
-rk_common_mode ()
+char str_vvod_buff[256];
+
+text
+rk_str_common_mode ()
 {
-  rk_clear_vvod ();
-  my_printf ("Ввод: ");
+  char *name = str_vvod_buff;
+
+  rk_mytermrestore ();
+  fgets (name, 256, stdin);
+  // my_printf("%u %u %u %u\n", name[0], name[1], name[2], name[3]);
+
+  int pos = 0;
+  while (name[pos] != '\n')
+    pos++;
+  name[pos] = 0;
+
+  rk_mytermregime (0, 1, 1, 0, 0);
+  return name;
+}
+
+int
+rk_common_mode (int base16)
+{
   rk_mytermrestore ();
 
   char str[256];
@@ -169,7 +212,7 @@ rk_common_mode ()
   // my_printf("\n%u %u %u %u %u %u", str[0], str[1], str[2], str[3], str[4],
   // str[5]);
 
-  int pos = 0, num = 0, let = 0, minus = 0;
+  int pos = 0, num = 0, let = 0, minus = 0, plus = 0;
   char c;
   while ((c = str[pos++]))
     {
@@ -178,69 +221,112 @@ rk_common_mode ()
 
       if (c >= '0' && c <= '9')
         {
-          if (c == '0' && num == 0)
-            continue;
-          num = num << 4 | (c - '0');
+          // if (c == '0' && let == 0) continue;
+          num = base16 ? num << 4 | (c - '0') : (num * 10 + (c - '0'));
           let++;
         }
-      else if (c >= 'a' && c <= 'f')
+      else if (base16 && c >= 'a' && c <= 'f')
         {
           num = num << 4 | (c - 'a' + 10);
           let++;
         }
       else if (c == '-')
-        minus = 0x4000;
-      if (let == 4)
-        break;
-    }
-
-  if (let)
-    {
-      sc_commandEncode (num >> 8, num & 127, &num);
-      num |= minus;
-
-      if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
         {
-          sc_memorySet (mem_pos, num);
+          minus = 0x4000;
+          plus = 0;
         }
-      else if (mem_pos == -1)
-        accumulator = num;
-      else if (mem_pos == -2)
-        instruction = num % MEMORY_SIZE;
-
-      rk_upd_mem ();
+      else if (c == '+')
+        {
+          minus = 0;
+          plus = 1;
+        }
+      else if (c == '\e')
+        {
+          rk_mytermregime (0, 1, 1, 0, 0);
+          return -2;
+        }
     }
+
+  if (let || minus || plus)
+    {
+      if (base16)
+        sc_commandEncode (num >> 8 & 127, num & 127, &num);
+      else if (num > 0x3fff)
+        num |= 0xffff; // Смотрите команду READ в УУ
+      num |= minus;
+      rk_mytermregime (0, 1, 1, 0, 0);
+      return num;
+    }
+
   rk_mytermregime (0, 1, 1, 0, 0);
+  return -1;
 }
 
 void
+apply_vvod (int num)
+{
+  if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
+    sc_memorySet (mem_pos, num);
+  else if (mem_pos == -1)
+    accumulator = num;
+  else if (mem_pos == -2)
+    instruction = num >= MEMORY_SIZE ? MEMORY_SIZE - 1 : num < 0 ? 0 : num;
+
+  rk_upd_mem ();
+}
+
+text default_name = "custom.mem"; // "memory.mem";
+
+int
 rk_key_handler (Keys key)
 {
   rk_clear_vvod ();
   if (key == K_L)
     {
-      my_printf ("Загрузка...");
-      if (sc_memoryLoad ("memory.mem"))
+      my_printf ("Загрузка... Name: ");
+      text name = rk_str_common_mode ();
+      if (name[0] == 0)
+        name = default_name;
+
+      if (sc_memoryLoad (name))
         {
           mt_gotoXY (28, 7);
-          my_printf ("Ошибка загрузки файла memory.mem");
-          return;
+          my_printf ("Ошибка загрузки файла %s", name);
+          return 0;
         }
       rk_upd_mem ();
       mt_gotoXY (28, 7);
-      my_printf ("Файл memory.mem загружен удачно");
+      my_printf ("Файл %s загружен удачно", name);
     }
   else if (key == K_S)
     {
-      my_printf ("Сохранение...");
+      my_printf ("Сохранение... Name: ");
+      text name = rk_str_common_mode ();
+      if (name[0] == 0)
+        name = default_name;
+
       mt_gotoXY (28, 7);
-      if (sc_memorySave ("memory.mem"))
+      if (sc_memorySave (name))
         {
-          my_printf ("Ошибка сохранения файла memory.mem");
-          return;
+          my_printf ("Ошибка сохранения файла %s", name);
+          return 0;
         }
-      my_printf ("Файл memory.mem загружен сохранён");
+      my_printf ("Файл %s сохранён удачно", name);
     }
+  else if (key == K_R)
+    {
+      sc_regSet (TF, 0);
+      struct itimerval nval, oval;
+      nval.it_interval.tv_sec = 0;
+      nval.it_interval.tv_usec = 100000;
+      nval.it_value.tv_sec = 0;
+      nval.it_value.tv_usec = 1;
+      setitimer (ITIMER_REAL, &nval, &oval);
+    }
+  else if (key == K_T)
+    raise (SIGALRM);
+  else if (key == K_I)
+    raise (SIGUSR1);
   else if (key == K_UP)
     {
       mem_pos = mem_pos < 0 ? (mem_pos == -1 ? -2 : -1)
@@ -289,18 +375,35 @@ rk_key_handler (Keys key)
     }
   else if (key == K_ENTER)
     {
-      rk_common_mode ();
+      rk_clear_vvod ();
+      my_printf ("Ввод: ");
+      int vvod = rk_common_mode (1);
+      if (vvod >= 0)
+        apply_vvod (vvod);
+      else if (vvod == -2)
+        {
+          rk_clear_vvod ();
+          my_printf ("Goodbye (vvod)");
+          return 1;
+        }
       rk_clear_vvod ();
       printf ("OK");
+    }
+  else if (key == K_ESC)
+    {
+      my_printf ("Goodbye");
+      return 1;
     }
   else if (key != K_OTHER)
     my_printf ("Key_num: %u", key);
   else
     my_printf ("Other_key");
+  return 0;
 }
 
 void
-rk_test ()
+rk_test () // Только для lab04. Перенесено в main5 для дальнейшего
+           // редактирования!
 {
   // rk_print();
   if (rk_mytermsave ())

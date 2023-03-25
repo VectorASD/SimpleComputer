@@ -194,8 +194,8 @@ bc_printFlags ()
   byte flags[5];
   int pos = 0, value;
 
-  for (int i = 0; i < 5; i++)
-    sc_regSet (1 << i, 1); // костыль для проверки
+  // for (int i = 0; i < 5; i++)
+  //   sc_regSet (1 << i, 0); // костыль для проверки
 
   sc_regGet (DF, &value); // Для максимальной правдаподобности,
   flags[0] = value; // хоть руки и чешутся влупить цикл, где: reg = 1 << i
@@ -217,6 +217,8 @@ bc_printFlags ()
       }
   buff[pos] = 0;
 
+  mt_gotoXY (Y, X);
+  my_printf ("                        ");
   mt_gotoXY (Y, X + (25 - pos) / 2);
   my_printf ("%s", buff);
 }
@@ -225,14 +227,15 @@ void
 bc_printKeys ()
 {
   int X = 55, Y = 17;
-  text keys[] = { "l  - load",
-                  "s  - save",
-                  "r  - run",
-                  "t  - step",
-                  "i  - reset",
-                  "F5 - accumulator",
-                  "F6 - instructionCounter" };
-  for (int i = 0; i < 7; i++)
+  text keys[] = { "l   - load          enter  - edit",
+                  "s   - save          arrows - move",
+                  "r   - run",
+                  "t   - step",
+                  "i   - reset",
+                  "F5  - accumulator",
+                  "F6  - instructionCounter",
+                  "ESC - leave" };
+  for (int i = 0; i < 8; i++)
     {
       mt_gotoXY (Y + i, X);
       my_printf ("%s", keys[i]);
@@ -290,7 +293,8 @@ bc_printAccumulator (int accumulator, int current)
       mt_setbgcolor (BLUE);
     }
   mt_gotoXY (5, 80);
-  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+', accumulator);
+  my_printf ("%c%04x", accumulator >> 14 & 1 ? '-' : '+',
+             accumulator & 0x3fff);
   if (current)
     mt_clrclr ();
 }
@@ -308,7 +312,7 @@ bc_printInstrCounter (int instr, int current)
   if (current)
     mt_clrclr ();
 
-  int value, command, operand;
+  int value, command = 0, operand = 0;
   sc_memoryGet (instr, &value);
   sc_commandDecode (value, &command, &operand);
   mt_gotoXY (11, 79);
