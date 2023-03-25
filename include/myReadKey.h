@@ -17,7 +17,8 @@ int rk_mytermrestore();
 int rk_mytermregime(int regime, int vtime, int vmin, int echo, int sigint);
 
 void rk_print();
-void rk_key_handler(Keys key);
+int rk_common_mode(int base16);
+int rk_key_handler(Keys key);
 void rk_upd_mem();
 void rk_clear();
 void rk_test();

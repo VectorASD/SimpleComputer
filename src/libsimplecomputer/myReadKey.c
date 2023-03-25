@@ -180,11 +180,9 @@ rk_clear_vvod ()
   mt_gotoXY (28, 7);
 }
 
-void
-rk_common_mode ()
+int
+rk_common_mode (int base16)
 {
-  rk_clear_vvod ();
-  my_printf ("Ввод: ");
   rk_mytermrestore ();
 
   char str[256];
@@ -202,12 +200,11 @@ rk_common_mode ()
 
       if (c >= '0' && c <= '9')
         {
-          if (c == '0' && let == 0)
-            continue;
-          num = num << 4 | (c - '0');
+          // if (c == '0' && let == 0) continue;
+          num = base16 ? num << 4 | (c - '0') : (num * 10 + (c - '0'));
           let++;
         }
-      else if (c >= 'a' && c <= 'f')
+      else if (base16 && c >= 'a' && c <= 'f')
         {
           num = num << 4 | (c - 'a' + 10);
           let++;
@@ -222,28 +219,42 @@ rk_common_mode ()
           minus = 0;
           plus = 1;
         }
+      else if (c == '\e')
+        {
+          rk_mytermregime (0, 1, 1, 0, 0);
+          return -2;
+        }
     }
 
   if (let || minus || plus)
     {
-      sc_commandEncode (num >> 8 & 127, num & 127, &num);
+      if (base16)
+        sc_commandEncode (num >> 8 & 127, num & 127, &num);
+      else if (num > 0x3fff)
+        num |= 0xffff;
       num |= minus;
-
-      if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
-        {
-          sc_memorySet (mem_pos, num);
-        }
-      else if (mem_pos == -1)
-        accumulator = num;
-      else if (mem_pos == -2)
-        instruction = num >= MEMORY_SIZE ? MEMORY_SIZE - 1 : num < 0 ? 0 : num;
-
-      rk_upd_mem ();
+      rk_mytermregime (0, 1, 1, 0, 0);
+      return num;
     }
+
   rk_mytermregime (0, 1, 1, 0, 0);
+  return -1;
 }
 
 void
+apply_vvod (int num)
+{
+  if (mem_pos >= 0 && mem_pos <= MEMORY_SIZE)
+    sc_memorySet (mem_pos, num);
+  else if (mem_pos == -1)
+    accumulator = num;
+  else if (mem_pos == -2)
+    instruction = num >= MEMORY_SIZE ? MEMORY_SIZE - 1 : num < 0 ? 0 : num;
+
+  rk_upd_mem ();
+}
+
+int
 rk_key_handler (Keys key)
 {
   rk_clear_vvod ();
@@ -254,7 +265,7 @@ rk_key_handler (Keys key)
         {
           mt_gotoXY (28, 7);
           my_printf ("Ошибка загрузки файла memory.mem");
-          return;
+          return 0;
         }
       rk_upd_mem ();
       mt_gotoXY (28, 7);
@@ -267,7 +278,7 @@ rk_key_handler (Keys key)
       if (sc_memorySave ("memory.mem"))
         {
           my_printf ("Ошибка сохранения файла memory.mem");
-          return;
+          return 0;
         }
       my_printf ("Файл memory.mem сохранён удачно");
     }
@@ -333,16 +344,30 @@ rk_key_handler (Keys key)
     }
   else if (key == K_ENTER)
     {
-      rk_common_mode ();
+      rk_clear_vvod ();
+      my_printf ("Ввод: ");
+      int vvod = rk_common_mode (1);
+      if (vvod >= 0)
+        apply_vvod (vvod);
+      else if (vvod == -2)
+        {
+          rk_clear_vvod ();
+          my_printf ("Goodbye (vvod)");
+          return 1;
+        }
       rk_clear_vvod ();
       printf ("OK");
     }
   else if (key == K_ESC)
-    my_printf ("Goodbye");
+    {
+      my_printf ("Goodbye");
+      return 1;
+    }
   else if (key != K_OTHER)
     my_printf ("Key_num: %u", key);
   else
     my_printf ("Other_key");
+  return 0;
 }
 
 void

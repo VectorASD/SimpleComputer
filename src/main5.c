@@ -64,14 +64,87 @@ ALU (int command, int operand)
         return -operand; // CU пойдёт условный переход и уберёт минус
       break;
     }
+  accumulator &= 0x7fff;
   return 1;
 }
 
+int cons_pos = 0;
+
 void
-StopCU ()
+comm_rw_clear ()
 {
-  alarm (0);
-  rk_upd_mem ();
+  if (cons_pos == 0)
+    return;
+  cons_pos = 0;
+  int rows, cols;
+  mt_getscreensize (&rows, &cols);
+  for (int row = 28; row <= rows; row++)
+    {
+      mt_gotoXY (row, 7);
+      my_printf ("                                                ");
+    }
+}
+
+int
+comm_read (int mem_pos)
+{
+  while (1)
+    {
+      int rows, cols;
+      mt_getscreensize (&rows, &cols);
+      if (28 + cons_pos >= rows)
+        {
+          sc_regSet (OF, 1);
+          return 1;
+        }
+
+      mt_gotoXY (28 + cons_pos, 7);
+      my_printf ("%u< ", mem_pos);
+      int vvod = rk_common_mode (0);
+
+      if (vvod == -2)
+        return 2;
+      if (vvod == -1)
+        {
+          mt_gotoXY (28 + cons_pos, 7);
+          my_printf ("%u< Ничего не введено", mem_pos);
+          cons_pos += 1;
+        }
+      else if (vvod > 32767)
+        {
+          mt_gotoXY (28 + cons_pos, 7);
+          my_printf ("%u< Можно вводить только от -16383 до 16383", mem_pos);
+          cons_pos += 1;
+        }
+      else
+        {
+          cons_pos += 1;
+          if (sc_memorySet (mem_pos, vvod))
+            return 3;
+          return 0;
+        }
+    }
+}
+
+int
+comm_write (int mem_pos)
+{
+  int rows, cols;
+  mt_getscreensize (&rows, &cols);
+  if (28 + cons_pos >= rows)
+    {
+      sc_regSet (OF, 1);
+      return 1;
+    }
+
+  int data;
+  if (sc_memoryGet (mem_pos, &data))
+    return 2;
+
+  mt_gotoXY (28 + cons_pos, 7);
+  my_printf ("%u> %u", mem_pos, data);
+  cons_pos += 1;
+  return 0;
 }
 
 int
@@ -91,8 +164,18 @@ CU ()
     {
     // 1x
     case 0x10: // READ
+      if (comm_read (operand))
+        {
+          sc_regSet (TF, 1);
+          return 10;
+        }
       break;
     case 0x11: // WRITE
+      if (comm_write (operand))
+        {
+          sc_regSet (TF, 1);
+          return 11;
+        }
       break;
     // 2x
     case 0x20: // LOAD
@@ -137,22 +220,44 @@ CU ()
     case 0x65: // ADDC
       break;
     default:
-      sc_memorySet (20, flags); // dbg ОТКУДА TF???
+      sc_memorySet (20, flags);
       sc_regSet (EF, 1);
-      // sc_regSet (TF, 1); ЧЁ?!
-      sc_memorySet (21, flags); // dbg
+      sc_regSet (TF, 1);
       sc_regGet (EF, &value);
       sc_memorySet (22, value); // dbg
+      sc_memorySet (21, flags); // dbg
       return 4;
     }
 
   if (instruction == MEMORY_SIZE - 1)
-    sc_regSet (TF, 1);
+    {
+      instruction = 0;
+      sc_regSet (TF, 1);
+    }
   else if (next_inst < 0 || next_inst >= MEMORY_SIZE)
     sc_regSet (OF, 1);
   else
     instruction = next_inst;
   mem_pos = instruction;
+  return 0;
+}
+
+int
+check_flags ()
+{
+  int res;
+  sc_regGet (DF, &res); // Division error flag
+  if (res)
+    return 1;
+  sc_regGet (OF, &res); // Overflow flag
+  if (res)
+    return 1;
+  sc_regGet (MF, &res); // Memory overflow flag
+  if (res)
+    return 1;
+  sc_regGet (EF, &res); // Error command flag
+  if (res)
+    return 1;
   return 0;
 }
 
@@ -162,14 +267,23 @@ signalCallback (int signal)
   switch (signal)
     {
     case SIGALRM:
-      // mt_gotoXY (1, 1);
-      // my_printf ("ALARM\n");
+      if (check_flags ())
+        {
+          sc_regSet (TF, 1);
+          alarm (0);
+          break;
+        }
       CU ();
-      rk_upd_mem ();
+      // mt_gotoXY (1, 1);
+      // my_printf ("flags: %u     ", flags);
       int ignor;
       sc_regGet (TF, &ignor);
-      if (ignor)
-        alarm (0);
+      if (ignor || check_flags ())
+        {
+          sc_regSet (TF, 1);
+          alarm (0);
+        }
+      rk_upd_mem ();
       break;
     case SIGUSR1: // reset'илка
       // mt_gotoXY (1, 1);
@@ -189,8 +303,8 @@ main (int argc, char **args)
   mt_getscreensize (&rows, &cols);
   if (cols < 101 || rows < 31)
     {
-      my_printf ("Минимально допустимый размер консоли: (101;31)\n");
-      my_printf ("Текущий размер консоли: (%u;%u)\n", cols, rows);
+      my_printf ("Минимально допустимый размер консоли: 101 x 31\n");
+      my_printf ("Текущий размер консоли: %u x %u\n", cols, rows);
       exit (1);
     }
   if (rk_mytermsave ())
@@ -214,8 +328,9 @@ main (int argc, char **args)
     {
       Keys res;
       rk_readkey (&res);
-      rk_key_handler (res);
-      if (res == K_ESC)
+
+      comm_rw_clear ();
+      if (rk_key_handler (res))
         break;
     }
 

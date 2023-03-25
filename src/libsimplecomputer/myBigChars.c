@@ -293,7 +293,7 @@ bc_printAccumulator (int accumulator, int current)
       mt_setbgcolor (BLUE);
     }
   mt_gotoXY (5, 80);
-  my_printf ("%c%04x", accumulator >> 15 & 1 ? '-' : '+',
+  my_printf ("%c%04x", accumulator >> 14 & 1 ? '-' : '+',
              accumulator & 0x3fff);
   if (current)
     mt_clrclr ();
