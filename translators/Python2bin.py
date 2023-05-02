@@ -66,7 +66,61 @@ code_length.) Сама программа
 Перечень кодов:
 10.) READ <куда считываем>
 11.) WRITE <что печатаем>
+
+40.) JUMP <куда прыгнуть>
+43.) HALT
 """
+
+def printer(codes):
+  for line in codes:
+    code, first = line[0], line[1] if len(line) > 1 else "x"
+    alt = "☘️%s☘️  " % first if type(first) is str else first
+    if code == 10: print("READ %s" % alt)
+    elif code == 11: print("WRITE %s" % alt)
+    elif code == 40: print("JUMP %s" % alt)
+    elif code == 43: print("HALT")
+    else: exit("printer: %s код не найден" % code)
+
+def linker(state):
+  def encode(code, value): return (code & 0x7f) << 7 | (value & 0x7f)
+  def linking(s):
+    if type(s) is int: return s
+    pref, num = s[0], int(s[1:])
+    if pref == "c": return start_c + num
+    if pref == "r": return start_r + num
+    exit("Нет такого префикса: %s" % pref)
+
+  limit = 100
+  codes, regs, consts = state
+  start_c = 1 # consts
+  start_r = start_c + len(consts) # regs
+  start_p = start_r + len(regs) # prog
+  need = start_p + len(codes)
+  if need > limit: error("УПС! Требуется %s ячеек памяти, а доступно %s" % (need, state)) # Врагу не пожелаешь встретиться с этой ошибкой ;'-}
+
+  mem = [0x4000] * limit
+  mem[0] = encode(40, start_p)
+  for n, const in enumerate(consts, start_c): mem[n] = const & 0x7fff
+  for n in range(start_r, start_p): mem[n] = 0
+  for n, code in enumerate(codes, start_p):
+    if len(code) == 1:
+      mem[n] = encode(code[0], 0)
+      continue
+    a, b = code
+    b = code[1] = linking(b)
+    mem[n] = encode(a, b)
+  return mem
+
+def print_mem(mem):
+  arr = []
+  for n, cell in enumerate(mem):
+    sign = "-" if cell >> 14 else "+"
+    code = cell >> 7 & 0x7f
+    value = cell & 0x7f
+    arr.append("%s%02x%02x" % (sign, code, value))
+    if n % 10 == 9:
+      print(" ".join(arr))
+      arr = []
 
 def compiler(code):
   tree = Parser(code)
@@ -80,10 +134,12 @@ def compiler(code):
   codes = []
   def add(code, *data): codes.append([code] + list(data))
 
-  const = [] # рассчитано только под числа
+  consts = [] # рассчитано только под числа
   def new_const(data):
-    n = len(const)
-    const.append(data)
+    try: return "c%s" % consts.index(data)
+    except ValueError: pass
+    n = len(consts)
+    consts.append(data)
     return "c%s" % n
   regs = [] # регистры нужны для промежуточных операций
   def new_reg():
@@ -173,11 +229,23 @@ def compiler(code):
   if get_name(tree) != "file_input": exit("Ожидалось синтаксическое дерево")
   if tn[tree.children[-1].type] != "ENDMARKER": exit("В конце ожидался маркер конца")
   suit(tree)
+
+  if codes and codes[-1][0] != 43: add(43) # HALT
+  
   print("~" * 60)
   print("    И того:")
-  print("Константы:", const)
+  print("Константы:", consts)
   print("Регистров:", len(regs), "|", regs)
   print("Код:", codes)
+  printer(codes)
+  
+  state = codes, regs, consts
+  mem = linker(state)
+  print("~" * 60)
+  printer(codes)
+  
+  print("~" * 60)
+  print_mem(mem)
 
 code = """
 # Это комментарий
