@@ -5,10 +5,11 @@ def exit(*args, **kw_args):
   print(*args, **kw_args)
   sys.exit()
 
-import lib2to3
+import lib2to3 # если у Вас не 3.10.4 версия питона и нет lib2to3, то вот решеньице: make fix_parser
 from lib2to3 import pytree
 from lib2to3.pgen2 import driver as pgen2_driver
 GPath = os.path.dirname(lib2to3.__file__)
+CurPath = os.path.dirname(__file__)
 grammar = pgen2_driver.load_grammar(os.path.join(GPath, "Grammar.txt")) #, force = True)
 driver = pgen2_driver.Driver(grammar, convert=pytree.convert)
 
@@ -74,7 +75,7 @@ code_length.) Сама программа
 def printer(codes):
   for line in codes:
     code, first = line[0], line[1] if len(line) > 1 else "x"
-    alt = "☘️%s☘️  " % first if type(first) is str else first
+    alt = "☘️ %s☘️ " % first if type(first) is str else first
     if code == 10: print("READ %s" % alt)
     elif code == 11: print("WRITE %s" % alt)
     elif code == 40: print("JUMP %s" % alt)
@@ -82,7 +83,9 @@ def printer(codes):
     else: exit("printer: %s код не найден" % code)
 
 def linker(state):
-  def encode(code, value): return (code & 0x7f) << 7 | (value & 0x7f)
+  def encode(code, value):
+    a, b = divmod(code, 10) # для удобства команды уже в 16-ричной системе счисления, т.е. 40 команда записывается, как 0x40vv
+    return (a % 10) << 11 | b << 7 | (value & 0x7f)
   def linking(s):
     if type(s) is int: return s
     pref, num = s[0], int(s[1:])
@@ -246,6 +249,7 @@ def compiler(code):
   
   print("~" * 60)
   print_mem(mem)
+  with open(os.path.join(CurPath, "compiled.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
 
 code = """
 # Это комментарий

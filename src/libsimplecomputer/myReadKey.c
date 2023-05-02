@@ -275,7 +275,7 @@ apply_vvod (int num)
   rk_upd_mem ();
 }
 
-text default_name = "custom.mem"; // "memory.mem";
+text default_name = "translators/compiled.mem"; // "custom.mem"; // "memory.mem";
 
 int
 rk_key_handler (Keys key)

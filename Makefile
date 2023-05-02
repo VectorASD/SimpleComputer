@@ -97,7 +97,7 @@ $(OBJ):
 
 .PHONY: clean
 clean:
-	rm -fr $(DIRS)
+	rm -fr $(DIRS) translators/lib2to3 translators/lib2to3.zip
 
 .PHONY: format
 format:
@@ -108,3 +108,11 @@ format:
 $(DIRS):
 	@if [ ! -d $@ ] ; then echo "creating $@"; mkdir $@; fi
 	@if [ ! -d $@ ] ; then echo "$@ not created, error!"; exit 1; fi
+
+.PHONY: fix_parser
+fix_parser:
+	cd translators; \
+	wget --no-clobber https://github.com/VectorASD/Storage/raw/main/lib2to3.zip; \
+	unzip -n lib2to3.zip; \
+	rm lib2to3.zip
+	

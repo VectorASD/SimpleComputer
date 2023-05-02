@@ -4,6 +4,7 @@ obj/*
 
 # Runtime artifacts
 # *.mem
+translators/lib2to3/*
 
 # Prerequisites
 *.d
