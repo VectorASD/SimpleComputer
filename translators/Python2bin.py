@@ -108,7 +108,32 @@ def printer(codes):
 
 def linker(state):
   codes, regs, consts = state
+
+  # простенький оптимизатор LOAD и STORE
+  in_accum, new, yeah = set(), [], 0 # in_accum - множество ячеек памяти, гарантирующие, что внутри них тоже, что и в аккумуляторе
+  for op in codes:
+    code, first = op[0], op[1] if len(op) > 1 else "x"
+    if code == -1: in_accum.clear() # метка
+    elif code == 10: in_accum.discard(first) # READ
+    elif code == 11: pass # WRITE
+    elif code == 20: # LOAD
+      if first in in_accum:
+        print("❌ ", end=""); printer([op])
+        yeah += 1; continue
+      in_accum.clear()
+      in_accum.add(first)
+    elif code == 21: # STORE
+      if first in in_accum:
+        print("❌ ", end=""); printer([op])
+        yeah += 1;continue
+      in_accum.add(first)
+    elif code in (30, 31, 32, 33, 34): in_accum.clear() # ADD/SUB/DIVIDE/MUL/MOD
+    else: pass # JUMP/JNEG/JZ/HALT - не влияют на содержимое аккумулятора в случае НЕсрабатывания
+    new.append(op)
+    print("✅ ", end=""); printer([op])
+  codes = new
   
+  # обработка меток:
   new, links = [], {}
   for op in codes:
     if op[0] == -1: links[op[1]] = len(new)
@@ -132,8 +157,9 @@ def linker(state):
   start_r = start_c + len(consts) # regs
   start_p = start_r + len(regs) # prog
   need = start_p + len(codes)
+  print("✅✅✅   За счёт оптимизатора занято %s ячеек, но без него было бы %s (-%s)" % (need, need + yeah, yeah))
   if need > limit: exit("linker: УПС! Требуется %s ячеек памяти, а доступно %s" % (need, limit)) # Врагу не пожелаешь встретиться с этой ошибкой ;'-}
-
+  
   mem = [0x4000] * limit
   mem[0] = encode(40, start_p)
   for n, const in enumerate(consts, start_c): mem[n] = 0 if const is None else const & 0x7fff
@@ -506,7 +532,7 @@ print(A < B); print(A >= B)
 code = """
 # Это комментарий
 while True:
-  C = input()
+  C = input() - input() # без оптимизатора это бы не влезало ;'-}
   if C >= 0: break
 print(C)
 
@@ -516,6 +542,7 @@ while n <= 10:
   if num < 0: cmp = 100
   elif num == 0: cmp = 10
   else: cmp = 1
+  num = n
   if num < 0: num = -num
   print(num * 1000 + cmp)
   n += 1
