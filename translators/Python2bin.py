@@ -255,15 +255,38 @@ def compiler(code):
         if cmp:
           label = get_label("cmp") # comparison
           label2 = get_label("cmpd") # comparison dropper
-          if value == "==": # A == B -> A - B == 0 -> A - B == 0 ? 1 : 0
-            add(31, reg2) # SUB <reg2>
+          # решил пойти по тяжёлому пути, а не добавлять новые 6 команд, как это положено во всех виртуалках во время разработки их кода
+          add(31, reg2) # SUB <reg2>
+          if value in ("==", "!="): # 5 операций вместо 1 :/
+            # A == B -> A - B == 0 -> A - B == 0 ? 1 : 0
+            # A != B -> A - B != 0 -> A - B == 0 ? 0 : 1
             add(42, label) # JZ <label>
-            add(20, new_const(0)) # LOAD 0
+            add(20, new_const(int(value == "!="))) # LOAD (0 при '==', либо 1 при '!=')
             add(40, label2) # JUMP <label2>
             add(-1, label)
-            add(20, new_const(1)) # LOAD 1
-            add(-1, label2)
+            add(20, new_const(int(value == "=="))) # LOAD (1 при '==', либо 0 при '!=')
+          elif value in ("<", ">="): # 5 операций вместо 1 :/
+            # A < B -> A - B < 0 -> A - B < 0 ? 1 : 0
+            # A >= B -> A - B >= 0 -> A - B < 0 ? 0 : 1
+            add(41, label) # JNEG <label>
+            add(20, new_const(int(value == ">="))) # LOAD (0 при '<', либо 1 при '>=')
+            add(40, label2) # JUMP <label2>
+            add(-1, label)
+            add(20, new_const(int(value == "<"))) # LOAD (1 при '<', либо 0 при '>=')
+          elif value in (">", "<="): # 6 операций вместо 1 :/
+            # A > B -> A - B > 0 -> B - A < 0 ? 1 : 0
+            # A <= B -> A - B <= 0 -> B - A < 0 ? 0 : 1
+            # Слишком трудоёмко переворачивать цепочку операций, т.к. кучу LOAD'ов и STORE'ов придётся докинуть... Вот альтернатива:
+            # A > B -> A - B > 0 -> A - B < 0 or A - B == 0 ? 0 : 1
+            # A <= B -> A - B <= 0 -> A - B < 0 or A - B == 0 ? 1 : 0
+            add(41, label) # JNEG <label>
+            add(42, label) # JZ <label>
+            add(20, new_const(int(value == ">"))) # LOAD (1 при '>', либо 0 при '<=')
+            add(40, label2) # JUMP <label2>
+            add(-1, label)
+            add(20, new_const(int(value == "<="))) # LOAD (0 при '>', либо 1 при '<=')
           else: error("expr:comparison: пока не поддерживается '%s' операция" % value)
+          add(-1, label2)
         else: add(augassign.index(value + "=") + 30, reg2) # ADD/SUB/DIVIDE/MUL/MOD <reg2>
         free_reg(reg2)
       if reg[0] == 'c': reg = new_reg()
@@ -389,17 +412,12 @@ print(C / 123); print(C % 123)
 
 A, B, C = 0, 1, 0
 code = """
-print(False)
-print(True)
+print(False); print(True)
 A = input()
 B = input()
-print(A == B)
-# print(A != B)
-# print(A <> B)
-# print(A > B)
-# print(A >= B)
-# print(A < B)
-# print(A <= B)
+print(A == B); print(A != B); print(A <> B)
+print(A > B); print(A <= B)
+print(A < B); print(A >= B)
 """
 
 compiler(code)
