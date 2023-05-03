@@ -84,6 +84,9 @@ code_length.) Сама программа
 41.) JNEG <куда прыгнуть, если в аккуме отриц. число>
 42.) JZ <куда прыгнуть, если в аккуме 0>
 43.) HALT
+
+71.) MOVA <адрес> | mem[accum] = mem[<адрес>]
+72.) MOVR <адрес> | mem[<адрес>] = mem[accum]
 """
 
 def printer(codes):
@@ -104,6 +107,8 @@ def printer(codes):
     elif code == 41: print("JNEG %s" % alt)
     elif code == 42: print("JZ %s" % alt)
     elif code == 43: print("HALT")
+    elif code == 71: print("MOVA %s" % alt)
+    elif code == 72: print("MOVR %s" % alt)
     else: exit("printer: %s код не найден" % code)
 
 def linker(state):
@@ -157,7 +162,7 @@ def linker(state):
   start_r = start_c + len(consts) # regs
   start_p = start_r + len(regs) # prog
   need = start_p + len(codes)
-  print("✅✅✅   За счёт оптимизатора занято %s ячеек, но без него было бы %s (-%s)" % (need, need + yeah, yeah))
+  print("✅✅✅ За счёт оптимизатора занято %s ячеек, но без него было бы %s (-%s)" % (need, need + yeah, yeah))
   if need > limit: exit("linker: УПС! Требуется %s ячеек памяти, а доступно %s" % (need, limit)) # Врагу не пожелаешь встретиться с этой ошибкой ;'-}
   
   mem = [0x4000] * limit
@@ -217,11 +222,23 @@ def compiler(code):
     if n[0] == "r":
       n = int(n[1:])
       if n in range(len(regs)): regs[n] = False
-  vars = {} # накопитель переменных
+  vars = {} # накопитель переменных (пара: номер_константы, является_ли_массивом)
   def new_var(name):
-    try: return vars[name]
-    except KeyError: var = vars[name] = new_const()
-    return var
+    try: return vars[name][0]
+    except KeyError: var = vars[name] = (new_const(), False)
+    return var[0]
+  def new_arr(name, len):
+    try:
+      a, b = vars[name]
+      if not b: error("new_arr: Нельзя работать с обычной переменной '%s' по индексу. Размер массива заранее объявляется в коде" % name)
+      return a
+    except KeyError: pass
+    if len is None: error("new_arr: Нигде не объявлен массив '%s' во время присвоения в его элемент чего-либо" % name)
+    if type(len) is not int: error("new_arr: В качестве размера нового массива должно быть число, не переменная")
+    c_arr = [new_const() for i in range(len)]
+    res = c_arr[0]
+    vars[name] = (res, True)
+    return -1
   labels = {} # накопитель меток
   def get_label(name):
     count = labels.get(name, 0)
@@ -265,7 +282,7 @@ def compiler(code):
       value = node.value
       if value == "pass": return -1
       if value == "return":
-        if codes and codes[-1][0] != 43: add(43) # HALT
+        if not codes or codes[-1][0] != 43: add(43) # HALT
         return -1
       if value in ("break", "continue"):
         label = loop_stack[-1][int(value == "continue")]
@@ -337,13 +354,34 @@ def compiler(code):
       reg = expr(b)
       add(11, reg) # WRITE <reg>
     elif name == "power":
-      a, b = check_len("expr:power", node, 2)
+      a, b = check_len("expr:power", node, 2) # цепочка из trailer'ов не поддерживается
       check_name("expr:power", a)
-      if a.value != "input": error("expr:power: Поддерживается только метод input")
       check_name("expr:power", b, "trailer")
-      # пока не обрабатываю содержимое trailer, хоть это и может быть не только вызов функции, но и атрибут, либо обращение к элементу массива.
-      reg = new_reg()
-      add(10, reg) # READ <reg>
+      childs = check_len("expr:power", b, (2, 3))
+      if len(childs) == 3: d, e, f = childs
+      else: d, e, f = childs[0], None, childs[1]
+      name = get_name(d)
+      if name == "LPAR":
+        check_name("expr:power:(...)", f, ")")
+        if a.value != "input": error("expr:power:(...): Поддерживается только метод input")
+        if e is not None: error("expr:power:(...): У функции input() не должно быть аргументов")
+        reg = new_reg()
+        add(10, reg) # READ <reg>
+      elif name == "LSQB":
+        check_name("expr:power:[...]", f, "]")
+        index = int(e.value) if get_name(e) == "NUMBER" else expr(e)
+        reg = new_arr(a.value, index)
+        if reg != -1:
+          if reg[0] != "c": error("expr:power:[...]: ожидалась константа, а не %s" % reg)
+          pos = int(reg[1:]) + 1
+          if type(index) is int:
+            add(20, new_const(pos + index)) # LOAD <c<pos+index>>
+          else:
+            add(20, new_const(pos)) # LOAD <c<pos>>
+            add(30, index)
+          reg = new_reg()
+          add(72, reg) # MOVR <reg>
+      else: error("expr: trailer: Ожидался LSQB или LPAR, а встречен", name)
     elif name == "atom":
       a, b, c = check_len("expr:atom", node, 3)
       check_name("expr:atom", a, "(")
@@ -380,15 +418,50 @@ def compiler(code):
       else: left_expr_stmt(node, reg, let)
     free_reg(reg)
   def left_expr_stmt(node, reg, let = None):
-    check_name("left_expr_stmt", node) # пока поддерживаются NAME слева от =, +=, -= и т.д.
-    dst = new_var(node.value)
-    if let is None or let.value == "=":
-      add(20, reg) # LOAD <reg>
-      add(21, dst) # STORE <dst>
+    name = check_name("left_expr_stmt", node, ("NAME", "power")) # пока поддерживаются NAME и power слева от =, +=, -= и т.д.
+    if name == "NAME":
+      dst = new_var(node.value)
+      if let is None or let.value == "=":
+        add(20, reg) # LOAD <reg>
+        add(21, dst) # STORE <dst>
+      else:
+        add(20, dst) # LOAD <dst>
+        add(augassign.index(let.value) + 30, reg) # ADD/SUB/DIVIDE/MUL/MOD <reg>
+        add(21, dst) # STORE <dst>
+    else: # name == "power"
+      left_power(node, reg, let)
+  def left_power(node, reg, let = None):
+    Recurs(node)
+    a, b = check_len("left_power", node, 2)
+    check_name("left_power", a)
+    check_name("left_power", b, "trailer")
+    name = a.value
+    reg2 = new_arr(name, None)
+    if reg2[0] != "c": error("left_power: Ожидалась константа (указатель начала массива) во время присвоения элементу массива")
+    pos = int(reg2[1:]) + 1
+    
+    a, b, c = check_len("left_power:trailer", b, 3)
+    check_name("left_power:trailer", a, "[")
+    check_name("left_power:trailer", c, "]")
+    if get_name(b) == "NUMBER":
+      index = int(b.value)
+      add(20, new_const(pos + index)) # LOAD <c<pos+index>>
     else:
-      add(20, dst) # LOAD <dst>
+      index = expr(b)
+      add(20, new_const(pos)) # LOAD <c<pos>>
+      add(30, index) # ADD <index>
+    if let is None or let.value == "=":
+      add(71, reg) # MOVA <reg>
+    else:
+      reg2, reg3 = new_reg(), new_reg()
+      add(72, reg3) # MOVR <reg3>
+      add(21, reg2) # STORE <reg2>
+      add(20, reg3) # LOAD <reg3>
       add(augassign.index(let.value) + 30, reg) # ADD/SUB/DIVIDE/MUL/MOD <reg>
-      add(21, dst) # STORE <dst>
+      add(21, reg3) # STORE <reg3>
+      add(20, reg2) # LOAD <reg2>
+      add(71, reg3) # MOVA <reg3>
+      free_reg(reg2); free_reg(reg3)
   
   def simple_stmt(node):
     for node in node.children:
@@ -473,14 +546,14 @@ def compiler(code):
   if tn[tree.children[-1].type] != "ENDMARKER": exit("В конце ожидался маркер конца")
   suit(tree)
 
-  if codes and codes[-1][0] != 43: add(43) # HALT
+  if not codes or codes[-1][0] != 43: add(43) # HALT
   
   print("~" * 60)
   print("    И того:")
   print("Константы:", consts)
   print("Регистров:", len(regs), "|", regs)
   print("Код:", codes)
-  printer(codes)
+  # printer(codes) Т.к. тоже самое (даже круче) выводит оптимизатор внутри linker'а
   
   state = [codes, regs, consts]
   mem = linker(state)
@@ -518,7 +591,7 @@ C = (A + B + A) * 10 - 5
 print(C / 123); print(C % 123)
 """
 
-code = """
+code3 = """
 print(False); print(True)
 A = input()
 B = input()
@@ -527,9 +600,7 @@ print(A > B); print(A <= B)
 print(A < B); print(A >= B)
 """
 
-# разработка:
-
-code = """
+code4 = """
 # Это комментарий
 while True:
   C = input() - input() # без оптимизатора это бы не влезало ;'-}
@@ -546,6 +617,26 @@ while n <= 10:
   if num < 0: num = -num
   print(num * 1000 + cmp)
   n += 1
+""" # целевой код достигнут!!! По сути, базовая часть курсовой выполнена, осталось реализовать команды своего варианта (массивы и 2 доп-команды)
+
+# разработка:
+
+code = """
+arr[8] # таким образом можно дать знать компилятору, что в массиве 8 элементов ;'-} без объявления никак, объявить размер через переменную низя, динамика в 100 ячеек памяти не влезет по хорошему, про кучу/стек я вообще молчу ;'-}
+arr = input()
+print(arr[0])
+i = 0
+while i < 8:
+  if i % 3 == 0: content = input()
+  arr[i] = content
+  i += 1
+arr[0] += 10 # АААХАХХА! O_u 98/100 ячеек памяти стало забито, когда я добавил '+=', '*=' и '%=' над индексами массивов... 
+arr[3] *= 3 # P.S. теперь 95/100, т.к. у меня утечка 3 регистров по ошибке была как раз из-за этих 3 операций ;'-} 
+arr[6] %= 4 # P.P.S. Теперь 99/100, т.к. ещё кое-что фиксил 3 часа...
+i = 7
+while i >= 0:
+  print(arr[i])
+  i -= 1
 """
 
 compiler(code)
