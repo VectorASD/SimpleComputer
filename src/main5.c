@@ -63,7 +63,7 @@ int ALU(int command, int operand) {
         accumulator %= value;
         break;
     case 0x41: // JNEG
-        if (accumulator < 0)
+        if (accumulator >> 14)
             return -operand; // CU пойдёт условный переход и уберёт минус
         break;
     case 0x42: // JZ
