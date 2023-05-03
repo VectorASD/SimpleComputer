@@ -272,7 +272,7 @@ def compiler(code):
     if len(childs) not in lens: error("%s: Ожидался размер потомства = %s, но встречено %s внутри ноды:\n  %s" % (func, lens, len(childs), repr(node)))
     return childs
 
-  expr_types = ("NUMBER", "NAME", "arith_expr", "term", "print_stmt", "power", "atom", "comparison")
+  expr_types = ("NUMBER", "NAME", "arith_expr", "term", "print_stmt", "power", "atom", "comparison", "test")
   def expr(node):
     name = get_name(node)
     if name == "NUMBER":
@@ -406,6 +406,32 @@ def compiler(code):
         # reg = expr(b)
         # add(53, reg)
         error("Не поддерживается унарная тильда")
+    elif name == "test":
+      # Recurs(node)
+      a, b, c, d, e = check_len("expr:test", node, 5)
+      check_value("expr:test", b, "if")
+      check_value("expr:test", d, "else")
+      label = get_label("cond")
+      label2 = get_label("goto")
+      reg = expr(c)
+      add(20, reg) # LOAD <reg>
+      add(42, label) # JZ <label>
+      free_reg(reg)
+      reg = expr(a)
+      free_reg(reg)
+      reg2 = new_reg()
+      if reg != reg2:
+      	add(20, reg) # LOAD <reg>
+      	add(21, reg2) # STORE <reg2>
+      add(40, label2) # JUMP <label2>
+      add(-1, label)
+      reg = expr(e)
+      free_reg(reg)
+      if reg != reg2:
+      	add(20, reg) # LOAD <reg>
+      	add(21, reg2) # STORE <reg2>
+      add(-1, label2)
+      reg = reg2
     else: error("expr: Не известный тип:", name)
     return reg
   
@@ -619,9 +645,7 @@ while n <= 10:
   n += 1
 """ # целевой код достигнут!!! По сути, базовая часть курсовой выполнена, осталось реализовать команды своего варианта (массивы и 2 доп-команды)
 
-# разработка:
-
-code = """
+code5 = """
 arr[8] # таким образом можно дать знать компилятору, что в массиве 8 элементов ;'-} без объявления никак, объявить размер через переменную низя, динамика в 100 ячеек памяти не влезет по хорошему, про кучу/стек я вообще молчу ;'-}
 arr = input()
 print(arr[0])
@@ -637,6 +661,17 @@ i = 7
 while i >= 0:
   print(arr[i])
   i -= 1
+""" # этот код абсолютно полностью доказывает работоспособность команд MOVA и MOVR! Есть некоторые неудобства, например, эти команды сохраняют и загружают в память, а не аккумулятор, но терпин ;)
+
+# разработка:
+
+code = """
+i = 0
+while True:
+  num = i - 4
+  print(-1 if num < 0 else 0 if num == 0 else 1)
+  i += 1
+  if i >= 10: break
 """
 
 compiler(code)
