@@ -132,7 +132,7 @@ def linker(state):
   start_r = start_c + len(consts) # regs
   start_p = start_r + len(regs) # prog
   need = start_p + len(codes)
-  if need > limit: error("УПС! Требуется %s ячеек памяти, а доступно %s" % (need, state)) # Врагу не пожелаешь встретиться с этой ошибкой ;'-}
+  if need > limit: exit("linker: УПС! Требуется %s ячеек памяти, а доступно %s" % (need, limit)) # Врагу не пожелаешь встретиться с этой ошибкой ;'-}
 
   mem = [0x4000] * limit
   mem[0] = encode(40, start_p)
@@ -187,6 +187,7 @@ def compiler(code):
     regs.append(True)
     return "r%s" % (len(regs) - 1)
   def free_reg(n):
+    if n == -1: return
     if n[0] == "r":
       n = int(n[1:])
       if n in range(len(regs)): regs[n] = False
@@ -200,6 +201,7 @@ def compiler(code):
     count = labels.get(name, 0)
     labels[name] = count + 1
     return ":" + name + "_" + hex(count)[2:]
+  loop_stack = [("!", "!")] # накопитель пар меток петель (петли: while, for)
   
   def test_name(func, node, values = "NAME"):
     name = get_name(node)
@@ -234,10 +236,20 @@ def compiler(code):
       num = int(node.value)
       reg = new_const(num)
     elif name == "NAME":
-      v_name = node.value
-      if v_name == "True": reg = new_const(1)
-      elif v_name == "False": reg = new_const(0)
-      else: reg = new_var(v_name)
+      value = node.value
+      if value == "pass": return -1
+      if value == "return":
+        if codes and codes[-1][0] != 43: add(43) # HALT
+        return -1
+      if value in ("break", "continue"):
+        label = loop_stack[-1][int(value == "continue")]
+        if label == "!": RaiseSE(code, node, "'%s' outside loop" % node.value)
+        add(40, label) # JUMP <label>
+        return -1
+      
+      if value == "True": reg = new_const(1)
+      elif value == "False": reg = new_const(0)
+      else: reg = new_var(value)
     elif name in ("arith_expr", "term", "comparison"): # arith_expr это '+' и '-';  term это '*', '/' и '%';   comparison это '==', '!=', '<>', '>=', '>', '<=' и '<'
       cmp = name == "comparison"
       # Recurs(node)
@@ -312,6 +324,24 @@ def compiler(code):
       check_name("expr:atom", c, ")")
       check_name("expr:atom", b, expr_types)
       reg = expr(b)
+    elif name == "factor":
+      # Recurs(node)
+      a, b = check_len("expr:factor", node, 2)
+      name = check_name("expr:factor", a, ("PLUS", "MINUS", "TILDE"))
+      is_num = get_name(b) == "NUMBER"
+      # print(name, is_num)
+      if name == "PLUS": reg = expr(b)
+      elif name == "MINUS":
+        if is_num: reg = new_const(-int(b.value)) # reg = expr(Leaf(2, "-" + b.value))
+        else:
+          reg = expr(b)
+          add(20, new_const(0)) # LOAD 0
+          add(31, reg) # SUB <reg>
+          add(21, reg) # STORE <reg>
+      else: # name == "TILDE"
+        # reg = expr(b)
+        # add(53, reg)
+        error("Не поддерживается унарная тильда")
     else: error("expr: Не известный тип:", name)
     return reg
   
@@ -333,7 +363,7 @@ def compiler(code):
       add(20, dst) # LOAD <dst>
       add(augassign.index(let.value) + 30, reg) # ADD/SUB/DIVIDE/MUL/MOD <reg>
       add(21, dst) # STORE <dst>
-    
+  
   def simple_stmt(node):
     for node in node.children:
       name = get_name(node)
@@ -344,11 +374,73 @@ def compiler(code):
         free_reg(reg)
       else: exit("simple_stmt: Встречен неизвестый элемент: " + name)
   
+  def suiter(node, func):
+    name = get_name(node)
+    if name == "simple_stmt": simple_stmt(node)
+    elif name == "suite": suit(node)
+    else: error("suiter:%s:" % func, name)
   def suit(node):
     for node in node.children:
       name = get_name(node)
       if name in ("ENDMARKER", "NEWLINE", "INDENT", "DEDENT"): continue
       if name == "simple_stmt": simple_stmt(node)
+      elif name == "while_stmt":
+        a, b, c, d = check_len("suit:while_stmt", node, 4)
+        check_value("suit:while_stmt", a, "while")
+        check_name("suit:while_stmt", c, ":")
+        loop = get_label("goto")
+        label = get_label("cond") # conditional
+        loop_stack.append((label, loop))
+        add(-1, loop)
+        reg = expr(b)
+        free_reg(reg)
+        add(20, reg) # LOAD <reg>
+        add(42, label) # JZ <label>
+        suiter(d, "while_stmt: Неизвестное тело цикла")
+        add(40, loop) # JUMP <loop>
+        add(-1, label)
+        loop_stack.pop()
+      elif name == "if_stmt":
+        #if len(nodes) not in (4, 7): error("suit:if_stmt: Недопустимый размер:", len(nodes)) Не актуально из-за elif-промежуточек
+        nodes = node.children
+        check_value("suit:if_stmt", nodes[0], "if")
+        check_name("suit:if_stmt", nodes[2], ":")
+        #Recurs(node)
+        #print("~" * 32, "if 💚 ")
+        label, label2 = get_label("cond"), None
+        reg = expr(nodes[1])
+        free_reg(reg)
+        add(20, reg) # LOAD <reg>
+        add(42, label) # JZ <label>
+        #print("~" * 24)
+        suiter(nodes[3], "if_stmt: Неизвестное тело основного условия (элемента #1)")
+        pos, el_n = 4, 2
+        while pos < len(nodes):
+          #print("~" * 24)
+          v = check_value("suit:if_stmt", nodes[pos], ("elif", "else"))
+          if label2 is None: label2 = get_label("goto")
+          add(40, label2) # JUMP <label2>
+          if v == "elif":
+            if get_name(nodes[pos + 2]) != "COLON": error("suit: if_stmt: Ожидался ':' элемент #%s" % el_n)
+            if label is None: error("suit:if_stmt: После 'else' встречен 'elif'") # На деле такого быть не может из-за SyntaxError
+            add(-1, label)
+            label = get_label("cond")
+            reg = expr(nodes[pos + 1])
+            free_reg(reg)
+            add(20, reg) # LOAD <reg>
+            add(42, label) # JZ <label>
+            suiter(nodes[pos + 3], "if_stmt: Неизвестное тело промежуточного условия (элемента #%s)" % el_n)
+            pos += 4
+          else: # v == "else"
+            if get_name(nodes[pos + 1]) != "COLON": error("suit: if_stmt: Ожидался ':' элемент #%s" % el_n)
+            add(-1, label)
+            label = None
+            suiter(nodes[pos + 2], "if_stmt: Неизвестное тело конечного условия (элемента #%s)" % el_n)
+            pos += 3
+          el_n += 1
+        if label is not None: add(-1, label)
+        if label2 is not None: add(-1, label2)
+        #print("~" * 32, "endif 💛 ")
       else: exit("suit: Встречен неизвестый элемент: " + name)
   
   if get_name(tree) != "file_input": exit("Ожидалось синтаксическое дерево")
@@ -373,14 +465,6 @@ def compiler(code):
   print("~" * 60)
   print_mem(mem)
   with open(os.path.join(CurPath, "compiled.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
-
-code = """
-# Это комментарий
-while True:
-  C = input() - input()
-  if C >= 0: break
-print(C)
-"""
 
 # успешно прошедший код:
 code = """
@@ -408,9 +492,6 @@ C = (A + B + A) * 10 - 5
 print(C / 123); print(C % 123)
 """
 
-# разработка:
-
-A, B, C = 0, 1, 0
 code = """
 print(False); print(True)
 A = input()
@@ -418,6 +499,26 @@ B = input()
 print(A == B); print(A != B); print(A <> B)
 print(A > B); print(A <= B)
 print(A < B); print(A >= B)
+"""
+
+# разработка:
+
+code = """
+# Это комментарий
+while True:
+  C = input()
+  if C >= 0: break
+print(C)
+
+n = -10
+while n <= 10:
+  num = n - 4
+  if num < 0: cmp = 100
+  elif num == 0: cmp = 10
+  else: cmp = 1
+  if num < 0: num = -num
+  print(num * 1000 + cmp)
+  n += 1
 """
 
 compiler(code)
