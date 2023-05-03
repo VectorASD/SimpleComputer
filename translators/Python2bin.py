@@ -66,6 +66,8 @@ code_length.) Сама программа
 Модель простая, как 5 пальцев ;'-}
 
 Перечень кодов:
+-1.) :<marker_name>
+
 10.) READ <куда считываем>
 11.) WRITE <что печатаем>
 
@@ -79,6 +81,8 @@ code_length.) Сама программа
 34.) MOD <с чем делим по модулю аккум>
 
 40.) JUMP <куда прыгнуть>
+41.) JNEG <куда прыгнуть, если в аккуме отриц. число>
+42.) JZ <куда прыгнуть, если в аккуме 0>
 43.) HALT
 """
 
@@ -86,7 +90,8 @@ def printer(codes):
   for line in codes:
     code, first = line[0], line[1] if len(line) > 1 else "x"
     alt = "☘️ %s☘️ " % first if type(first) is str else first
-    if code == 10: print("READ %s" % alt)
+    if code == -1: print(first, "~" * 5)
+    elif code == 10: print("READ %s" % alt)
     elif code == 11: print("WRITE %s" % alt)
     elif code == 20: print("LOAD %s" % alt)
     elif code == 21: print("STORE %s" % alt)
@@ -96,22 +101,33 @@ def printer(codes):
     elif code == 33: print("MUL %s" % alt)
     elif code == 34: print("MOD %s" % alt)
     elif code == 40: print("JUMP %s" % alt)
+    elif code == 41: print("JNEG %s" % alt)
+    elif code == 42: print("JZ %s" % alt)
     elif code == 43: print("HALT")
     else: exit("printer: %s код не найден" % code)
 
 def linker(state):
+  codes, regs, consts = state
+  
+  new, links = [], {}
+  for op in codes:
+    if op[0] == -1: links[op[1]] = len(new)
+    else: new.append(op)
+  state[0] = codes = new
+  
   def encode(code, value):
     a, b = divmod(code, 10) # для удобства команды уже в 16-ричной системе счисления, т.е. 40 команда записывается, как 0x40vv
     return (a % 10) << 11 | b << 7 | (value & 0x7f)
   def linking(s):
     if type(s) is int: return s
-    pref, num = s[0], int(s[1:])
+    pref = s[0]
+    if pref == ":": return links[s] + start_p
+    num = int(s[1:])
     if pref == "c": return start_c + num
     if pref == "r": return start_r + num
     exit("Нет такого префикса: %s" % pref)
 
   limit = 100
-  codes, regs, consts = state
   start_c = 1 # consts
   start_r = start_c + len(consts) # regs
   start_p = start_r + len(regs) # prog
@@ -179,6 +195,11 @@ def compiler(code):
     try: return vars[name]
     except KeyError: var = vars[name] = new_const()
     return var
+  labels = {} # накопитель меток
+  def get_label(name):
+    count = labels.get(name, 0)
+    labels[name] = count + 1
+    return ":" + name + "_" + hex(count)[2:]
   
   def test_name(func, node, values = "NAME"):
     name = get_name(node)
@@ -206,19 +227,24 @@ def compiler(code):
     if len(childs) not in lens: error("%s: Ожидался размер потомства = %s, но встречено %s внутри ноды:\n  %s" % (func, lens, len(childs), repr(node)))
     return childs
 
-  expr_types = ("NUMBER", "NAME", "arith_expr", "term", "print_stmt", "power", "atom")
+  expr_types = ("NUMBER", "NAME", "arith_expr", "term", "print_stmt", "power", "atom", "comparison")
   def expr(node):
     name = get_name(node)
     if name == "NUMBER":
       num = int(node.value)
       reg = new_const(num)
     elif name == "NAME":
-      reg = new_var(node.value)
-    elif name in ("arith_expr", "term"): # arith_expr это '+' и '-';  term это '*', '/' и '%'
+      v_name = node.value
+      if v_name == "True": reg = new_const(1)
+      elif v_name == "False": reg = new_const(0)
+      else: reg = new_var(v_name)
+    elif name in ("arith_expr", "term", "comparison"): # arith_expr это '+' и '-';  term это '*', '/' и '%';   comparison это '==', '!=', '<>', '>=', '>', '<=' и '<'
+      cmp = name == "comparison"
       # Recurs(node)
       for n, node in enumerate(node.children):
         if n % 2:
           let = node
+          if let.value == "<>": let.value = "!="
           continue
         if n == 0:
           reg = expr(node)
@@ -226,7 +252,19 @@ def compiler(code):
           continue
         reg2 = expr(node)
         value = let.value
-        add(augassign.index(value + "=") + 30, reg2) # ADD/SUB/DIVIDE/MUL/MOD <reg2>
+        if cmp:
+          label = get_label("cmp") # comparison
+          label2 = get_label("cmpd") # comparison dropper
+          if value == "==": # A == B -> A - B == 0 -> A - B == 0 ? 1 : 0
+            add(31, reg2) # SUB <reg2>
+            add(42, label) # JZ <label>
+            add(20, new_const(0)) # LOAD 0
+            add(40, label2) # JUMP <label2>
+            add(-1, label)
+            add(20, new_const(1)) # LOAD 1
+            add(-1, label2)
+          else: error("expr:comparison: пока не поддерживается '%s' операция" % value)
+        else: add(augassign.index(value + "=") + 30, reg2) # ADD/SUB/DIVIDE/MUL/MOD <reg2>
         free_reg(reg2)
       if reg[0] == 'c': reg = new_reg()
       add(21, reg) # STORE <reg>
@@ -303,8 +341,9 @@ def compiler(code):
   print("Код:", codes)
   printer(codes)
   
-  state = codes, regs, consts
+  state = [codes, regs, consts]
   mem = linker(state)
+  codes = state[0]
   print("~" * 60)
   printer(codes)
   
@@ -329,8 +368,7 @@ print 11
 print(7)
 """
 
-# разработка:
-code = """
+code2 = """
 B; A; D # так можно манипулировать порядком "констант", что занимают эти переменные
 A = input()
 B = input()
@@ -345,6 +383,23 @@ A /= 3; print(A)
 A %= 123; print(A)
 C = (A + B + A) * 10 - 5
 print(C / 123); print(C % 123)
+"""
+
+# разработка:
+
+A, B, C = 0, 1, 0
+code = """
+print(False)
+print(True)
+A = input()
+B = input()
+print(A == B)
+# print(A != B)
+# print(A <> B)
+# print(A > B)
+# print(A >= B)
+# print(A < B)
+# print(A <= B)
 """
 
 compiler(code)
