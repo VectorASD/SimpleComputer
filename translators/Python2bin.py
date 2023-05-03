@@ -222,13 +222,14 @@ def compiler(code):
           continue
         if n == 0:
           reg = expr(node)
+          add(20, reg) # LOAD <reg>
           continue
         reg2 = expr(node)
         value = let.value
-        add(20, reg) # LOAD <reg>
         add(augassign.index(value + "=") + 30, reg2) # ADD/SUB/DIVIDE/MUL/MOD <reg2>
-        add(21, reg) # STORE <reg>
         free_reg(reg2)
+      if reg[0] == 'c': reg = new_reg()
+      add(21, reg) # STORE <reg>
       # exit()
     elif name == "print_stmt":
       a, b = check_len("expr:print_stmt", node, 2)
