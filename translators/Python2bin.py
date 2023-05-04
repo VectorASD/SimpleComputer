@@ -705,7 +705,7 @@ def main():
   import optparse
   parser = optparse.OptionParser(usage="Python2bin.py <file_input_path.py> <file_output_path.mem>")
   parser.add_option("-f", "--for_sat", action="store_true")
-  options, args = parser.parse_args(sys.argv) # добавляет опцию --help
+  options, args = parser.parse_args(sys.argv) # добавляет опцию --help и --for_sat
   
   args = args[1:]
   if len(args) != 2: parser.error("Ожидалось 2 строки после Python2bin.py")

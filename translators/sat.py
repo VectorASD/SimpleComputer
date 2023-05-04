@@ -49,7 +49,7 @@ def translator(code):
     if addr not in range(limit): exit('Адрес "%s" за пределами памяти (допустимо 0..%s)' % (addr, limit - 1))
     
     if b == "=":
-      err = 'После слова "=" ожидалось ровно 5 символов формата <"+"|"-"><%02d-команда от 00 до 79><%02x-величина от 00 до 7f>'
+      err = 'После слова "=" ожидалось ровно 5 символов формата <"+"|"-"><%02x-команда от 00 до 7f><%02x-величина от 00 до 7f>'
 
       orig_c = c
       if not c or c[0] not in "+-": c = "+" + c
@@ -59,11 +59,11 @@ def translator(code):
       if len(c) != 5: exit(err)
       sign, code, value = c[0], c[1:3], c[3:5]
       if sign not in "-+": exit(err)
-      try: code, value = int(code), int(value, 16)
+      try: code, value = int(code, 16), int(value, 16)
       except ValueError: exit(err)
-      if code not in range(80) or value not in range(128): exit(err)
+      if code not in range(128) or value not in range(128): exit(err)
       
-      res = (0 if sign == "+" else 0x4000) | int(str(code), 16) << 7 | value
+      res = (0 if sign == "+" else 0x4000) | code << 7 | value
     else:
       b = b.upper()
       err = 'В строке "%s" после "%s" ожидалось число (допустимо 0..%s)' % (line, b, limit - 1)
@@ -124,10 +124,29 @@ code = """
 def main():
   import optparse
   parser = optparse.OptionParser(usage="sat.py <file_input_path.py> <file_output_path.mem>")
-  options, args = parser.parse_args(sys.argv) # добавляет опцию --help
+  parser.add_option("-t", "--test", action="store_true")
+  options, args = parser.parse_args(sys.argv) # добавляет опцию --help и --test
   args = args[1:]
   if len(args) != 2: parser.error("Ожидалось 2 строки после sat.py")
   src, dist = args
+  
+  if options.test:
+    d_dir = os.path.dirname(src + os.path.sep)
+    if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена 1-ая дирректория .mem файлов: '%s/'" % d_dir)
+    d_dir2 = os.path.dirname(dist + os.path.sep)
+    if d_dir2 and not os.path.exists(d_dir2): parser.error("❌ Не обнаружена 2-ая дирректория .mem файлов: '%s/'" % d_dir2)
+    if d_dir == d_dir2: parser.error("❌ Обе дирректории одинаковые :/")
+    A = set(name for name in os.listdir(d_dir) if name.endswith(".mem"))
+    B = set(name for name in os.listdir(d_dir2) if name.endswith(".mem"))
+    for name in A & B:
+      path_a = os.path.join(d_dir, name)
+      path_b = os.path.join(d_dir2, name)
+      with open(path_a, "rb") as file: data = file.read()
+      with open(path_b, "rb") as file: data2 = file.read()
+      if data == data2: print('✅ Файлы безошибочно равны! "%s" == "%s"' % (path_a, path_b))
+      else: print('❌ Ошибка сопоставления :///// "%s" != "%s"' % (path_a, path_b)) # благо все 6 файлов отбарабанили галочку ;'-}
+    return
+  
   d_dir = os.path.dirname(dist)
   if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
   if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
