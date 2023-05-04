@@ -15,6 +15,9 @@ def exit(*args, **kw_args):
 # smali и то является низкоуровневым, хоть и имет на счету около 200 видов операций, опять же из-за меток,only goto,линейности кода в целом...
 # Думаю долго это делать не буду ;'-}
 
+# P.S. в разработке понял в чём подвох... ещё предполагал, что там придётся постараться, так на практике и вышло...
+# из-за регулярных выражений я серьёзные объёмы кода вытряхнул из своего Python2bin'а ;'-} смотрите функцию expr, там и ВЕЛОСИПЕДНЫЙ парсер я подогнал из головы ;D
+
 AB = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 AB += AB.lower() + "_"
 augassign = ['+=', '-=', '/=', '*=', '%=']
@@ -219,7 +222,9 @@ def translator(code):
         add(-1, label2)
       return reg
     
-    handler(arr)
+    reg = handler(arr)
+    free_reg(reg)
+    return reg
   
   prev_label = 0
   for line in code.split("\n"):
@@ -235,33 +240,71 @@ def translator(code):
     prev_label = label
     
     code = arr[1]
-    if not code.isupper(): exit("второе слово имеет прописные буквы, спасибо условиям ТЗ")
-    
-    if code == "REM": pass # комментарий
-    elif code in ("INPUT", "READ"):
-      if len(arr) != 3: exit("после %s должно быть ровно 1 слово" % code)
-      var = arr[2]
-      if var not in AB: exit("3-ее слово должно быть одной буквой, спасибо условиям ТЗ") # в ТЗ забыли уточнить, что переменные должны быть прописные ;'-}}}
-      var = new_var(var)
-      add(10, var) # READ <var>
-    elif code in ("OUTPUT", "WRITE", "PRINT"):
-      if len(arr) != 3: exit("после %s должно быть ровно 1 слово" % code)
-      var = arr[2]
-      if var not in AB: exit("3-ее слово должно быть одной буквой, спасибо условиям ТЗ")
-      var = new_var(var)
-      add(11, var) # WRITE <var>
-    elif code == "END":
-      if not codes or codes[0][0] != 43: add(43) # HALT
-    elif code == "LET":
-      if len(arr) == 2: exit("после %s должно быть хотя бы одно слово" % code)
-      expr(" ".join(arr[2:]))
-    else: exit("2-ое слово не поддерживается Simple Basic'ом")
+    if code != "REM":
+      label = ":line_%s" % label
+      labels[label] = 1
+      add(-1, label)
+
+    def handler(arr): # для поддержки того, что после IF-выражения
+      global err_prefix
+      err_prefix = 'В строке "%s" ' % " ".join(arr)
+      
+      code = arr[1]
+      if not code.isupper(): exit("2-ое слово имеет прописные буквы, спасибо условиям ТЗ")
+      
+      if code == "REM": pass # комментарий
+      elif code in ("INPUT", "READ"):
+        if len(arr) != 3: exit("после %s должно быть ровно 1 слово" % code)
+        var = arr[2]
+        if var not in AB: exit("3-ее слово должно быть одной буквой, спасибо условиям ТЗ") # в ТЗ забыли уточнить, что переменные должны быть прописные ;'-}}}
+        var = new_var(var)
+        add(10, var) # READ <var>
+      elif code in ("OUTPUT", "WRITE", "PRINT"):
+        if len(arr) != 3: exit("после %s должно быть ровно 1 слово" % code)
+        var = arr[2]
+        if var not in AB: exit("3-ее слово должно быть одной буквой, спасибо условиям ТЗ")
+        var = new_var(var)
+        add(11, var) # WRITE <var>
+      elif code == "END":
+        if not codes or codes[0][0] != 43: add(43) # HALT
+      elif code == "LET":
+        if len(arr) == 2: exit("после %s должно быть хотя бы одно слово" % code)
+        expr(" ".join(arr[2:])) # вроде одна строчка, а внутри целое королевство кода ;'-}}}
+      elif code == "IF":
+        yeah = False
+        for i in range(2, len(arr)):
+          if arr[i].upper() in ("REM", "INPUT", "READ", "OUTPUT", "WRITE", "PRINT", "END", "LET", "IF", "GOTO"):
+            yeah = i
+            break
+        if not yeah: exit("не обнаружена команда срабатывания после IF-выражения")
+        reg = expr(" ".join(arr[2:yeah]))
+        
+        save = err_prefix
+        
+        label = get_label(":cond")
+        add(42, reg) # JZ <reg>
+        handler(["%s ..." % arr[0]] + arr[yeah:])
+        add(-1, label)
+        
+        err_prefix = save
+      
+      elif code == "GOTO":
+        if len(arr) != 3: exit("после %s должно быть ровно 1 слово" % code)
+        try: label = int(arr[2])
+        except ValueError: exit("3-ое слово - не число")
+        label = ":line_%s" % label
+        try: labels[label]
+        except KeyError: exit("метка %s с таким номером строки не найдена :/" % label)
+        add(40, label) # JUMP <label>
+      else: exit("2-ое слово не поддерживается Simple Basic'ом")
+    handler(arr)
+  
   err_prefix = None
 
   print("~" * 60)
   print("    И того:")
   print("Константы:", consts)
-  # print("Регистров:", len(regs), "|", regs)
+  print("Регистров:", len(regs), "|", regs)
   print("Код:", codes)
 
   state = (codes, regs, consts)
@@ -276,9 +319,10 @@ code = """
 20 INPUT A
 30 INPUT B
 40 LET C=-5* A- -B * -10/A + B
-50 REM IF C < 0 GOTO 20
+50 IF C < 0 GOTO 20
 60 PRINT C
 70 END
 """
 
 mem, sa = translator(code) # на самом деле Simple Assembler и Binary генерируются одновременно не зависимо от друг-друга без помощи sat.py, а не сначала sa, а потом mem, но в принципе это спорная ситуация по сравнению с ТЗ, так что и так пойдёт ;'-}
+# надеюсь это было рекомендаций а не обязаловкой, иначе это будет выглядеть абсурдно, как я в sat.py запихиваю sa переменную и получаю абсолютно то же, что и в mem переменной ;'-}}}}}}}
