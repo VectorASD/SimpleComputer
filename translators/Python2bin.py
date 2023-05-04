@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 def exit(*args, **kw_args):
   print(*args, **kw_args)
@@ -111,6 +112,19 @@ def printer(codes):
     elif code == 72: print("MOVR %s" % alt)
     else: exit("printer: %s код не найден" % code)
 
+to_sa = {
+  10: "READ", 11: "WRITE",
+  
+  20: "LOAD", 21: "STORE",
+  
+  30: "ADD", 31: "SUB", 32: "DIVIDE", 
+  33: "MUL", 34: "MOD",
+  
+  40: "JUMP", 41: "JNEG", 42: "JZ", 43: "HALT",
+  
+  71: "MOVA", 72: "MOVR",
+}
+
 def linker(state):
   codes, regs, consts = state
 
@@ -133,7 +147,9 @@ def linker(state):
         yeah += 1;continue
       in_accum.add(first)
     elif code in (30, 31, 32, 33, 34): in_accum.clear() # ADD/SUB/DIVIDE/MUL/MOD
-    else: pass # JUMP/JNEG/JZ/HALT - не влияют на содержимое аккумулятора в случае НЕсрабатывания
+    elif code in (40, 41, 42, 43): pass # JUMP/JNEG/JZ/HALT - не влияют на содержимое аккумулятора в случае НЕсрабатывания
+    elif code == 71: in_accum.clear() # MOVA
+    else: in_accum.discard(first) # MOVR
     new.append(op)
     print("✅ ", end=""); printer([op])
   codes = new
@@ -143,7 +159,7 @@ def linker(state):
   for op in codes:
     if op[0] == -1: links[op[1]] = len(new)
     else: new.append(op)
-  state[0] = codes = new
+  codes = new
   
   def encode(code, value):
     a, b = divmod(code, 10) # для удобства команды уже в 16-ричной системе счисления, т.е. 40 команда записывается, как 0x40vv
@@ -167,16 +183,28 @@ def linker(state):
   
   mem = [0x4000] * limit
   mem[0] = encode(40, start_p)
-  for n, const in enumerate(consts, start_c): mem[n] = 0 if const is None else const & 0x7fff
-  for n in range(start_r, start_p): mem[n] = 0
+  sa = ["00 JUMP   %02d ; (лаунчер)" % start_p]
+  for n, const in enumerate(consts, start_c):
+    res = 0 if const is None else const & 0x7fff
+    mem[n] = res
+    sa.append("%02d  =  %s%02x%02x ; (%s)" % (n, "+" if res < 0x4000 else "-", res >> 7 & 127, res & 127, "var" if const is None else "const"))
+  for n in range(start_r, start_p):
+    mem[n] = 0
+    sa.append("%02d  =  +0000 ; (регистр)" % n)
   for n, code in enumerate(codes, start_p):
     if len(code) == 1:
-      mem[n] = encode(code[0], 0)
-      continue
-    a, b = code
-    b = code[1] = linking(b)
-    mem[n] = encode(a, b)
-  return mem
+      a, b = code[0], 0
+    else:
+      a, b = code
+      b = code[1] = linking(b)
+    res = encode(a, b)
+    mem[n] = res
+    sa.append("%02d %-6s %02d" % (n, to_sa[a], b) + (" ; (начало программы)" if n == start_p else ""))
+
+  print("~" * 60)
+  print(*sa, sep="\n")
+  
+  return mem, sa
 
 def print_mem(mem):
   arr = []
@@ -421,15 +449,15 @@ def compiler(code):
       free_reg(reg)
       reg2 = new_reg()
       if reg != reg2:
-      	add(20, reg) # LOAD <reg>
-      	add(21, reg2) # STORE <reg2>
+        add(20, reg) # LOAD <reg>
+        add(21, reg2) # STORE <reg2>
       add(40, label2) # JUMP <label2>
       add(-1, label)
       reg = expr(e)
       free_reg(reg)
       if reg != reg2:
-      	add(20, reg) # LOAD <reg>
-      	add(21, reg2) # STORE <reg2>
+        add(20, reg) # LOAD <reg>
+        add(21, reg2) # STORE <reg2>
       add(-1, label2)
       reg = reg2
     else: error("expr: Не известный тип:", name)
@@ -581,15 +609,12 @@ def compiler(code):
   print("Код:", codes)
   # printer(codes) Т.к. тоже самое (даже круче) выводит оптимизатор внутри linker'а
   
-  state = [codes, regs, consts]
-  mem = linker(state)
-  codes = state[0]
-  print("~" * 60)
-  printer(codes)
+  state = (codes, regs, consts)
+  mem, sa = linker(state)
   
   print("~" * 60)
   print_mem(mem)
-  return mem
+  return mem, sa
 
 # успешно прошедший код:
 code = """
@@ -677,31 +702,35 @@ while True:
 # P.S. чисто для формальности вытащил все 6 блоков кода в файлы в папку "py/"
 
 def main():
-	import optparse
-	parser = optparse.OptionParser(usage="Python2bin.py <file_input_path.py> <file_output_path.mem>")
-	options, args = parser.parse_args(sys.argv) # добавляет опцию --help
-	args = args[1:]
-	if len(args) != 2: parser.error("Ожидалось 2 строки после Python2bin.py")
-	src, dist = args
-	d_dir = os.path.dirname(dist)
-	if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
-	if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
-	
-	try:
-		with open(src) as file: code = file.read()
-	except Exception as e:
-		print("❌ Ошибка открытия файла-источника:\n%s" % e)
-		return
-	
-	try: mem = compiler(code)
-	except Exception as e:
-		print("❌ Ошибка компиляции:\n%s" % e)
-		return
-	
-	try:
-		with open(dist, "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
-		print("✅ Файл '%s' успешно сохранён" % dist)
-	except Exception as e: print("❌ Ошибка сохранения файла-результата:\n%s" % e)
+  import optparse
+  parser = optparse.OptionParser(usage="Python2bin.py <file_input_path.py> <file_output_path.mem>")
+  parser.add_option("-f", "--for_sat", action="store_true")
+  options, args = parser.parse_args(sys.argv) # добавляет опцию --help
+  
+  args = args[1:]
+  if len(args) != 2: parser.error("Ожидалось 2 строки после Python2bin.py")
+  src, dist = args
+  d_dir = os.path.dirname(dist)
+  if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
+  if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
+  
+  try:
+    with open(src) as file: code = file.read()
+  except:
+    print("❌ Ошибка открытия файла-источника:\n%s" % traceback.format_exc())
+    return
+  
+  try: mem, sa = compiler(code)
+  except:
+    print("❌ Ошибка компиляции:\n%s" % traceback.format_exc())
+    return
+  
+  try:
+    if options.for_sat: bin, content = False, "\n".join(sa)
+    else: bin, content = True, b"".join(bytes((i & 255, i >> 8)) for i in mem)
+    
+    with open(dist, "wb" if bin else "w") as file: file.write(content)
+    print("✅ Файл '%s' успешно сохранён (как %s)" % (dist, "mem" if bin else "sa"))
+  except: print("❌ Ошибка сохранения файла-результата:\n%s" % traceback.format_exc())
 
 if __name__ == "__main__": main()
-

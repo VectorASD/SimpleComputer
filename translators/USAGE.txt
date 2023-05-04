@@ -7,4 +7,11 @@ python3 Python2bin.py py/code4.py py/code4.mem
 python3 Python2bin.py py/code5.py py/code5.mem
 python3 Python2bin.py py/code6.py py/code6.mem
 
+python3 Python2bin.py py/code.py sa/code.sa --for_sat
+python3 Python2bin.py py/code2.py --for_sat sa/code2.sa
+python3 Python2bin.py --for_sat py/code3.py sa/code3.sa
+python3 Python2bin.py py/code4.py sa/code4.sa --for_sat
+python3 Python2bin.py py/code5.py sa/code5.sa -f
+python3 Python2bin.py py/code6.py sa/code6.sa -f
+
 Желательно находиться в папке с Python2bin.py и прочими скриптами-трансляторами, если нет желания везде дописывать "translators/..."

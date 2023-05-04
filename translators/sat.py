@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 def exit(*args, **kw_args):
   print(*args, **kw_args)
@@ -79,6 +80,11 @@ def translator(code):
       res = int(str(code), 16) << 7 | value
     
     mem[addr] = res
+  
+  print("~" * 60)
+  print("И того, получаем:")
+  print_mem(mem)
+  
   return mem
 
 def print_mem(mem):
@@ -110,12 +116,38 @@ code = """
 21 = +
 22 = -
 23 HALT 283012303
-"""
+""" # добавил этот же код ещё и в sample.sa
 
-mem = translator(code)
-print("~" * 60)
-print("И того, получаем:")
-print_mem(mem)
+# CurPath = os.path.dirname(__file__)
+# with open(os.path.join(CurPath, "translated.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
 
-CurPath = os.path.dirname(__file__)
-with open(os.path.join(CurPath, "translated.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
+def main():
+  import optparse
+  parser = optparse.OptionParser(usage="sat.py <file_input_path.py> <file_output_path.mem>")
+  options, args = parser.parse_args(sys.argv) # добавляет опцию --help
+  args = args[1:]
+  if len(args) != 2: parser.error("Ожидалось 2 строки после sat.py")
+  src, dist = args
+  d_dir = os.path.dirname(dist)
+  if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
+  if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
+  
+  try:
+    with open(src) as file: code = file.read()
+  except:
+    print("❌ Ошибка открытия файла-источника:\n%s" % traceback.format_exc())
+    return
+
+  try: mem = translator(code)
+  except:
+    print("❌ Ошибка транслирования:\n%s" % traceback.format_exc())
+    return
+  
+  try:
+    with open(dist, "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
+    print("✅ Файл '%s' успешно сохранён" % dist)
+  except: print("❌ Ошибка сохранения файла-результата:\n%s" % traceback.format_exc())
+
+# mem = translator(code)
+
+if __name__ == "__main__": main()
