@@ -1,0 +1,15 @@
+00 JUMP   04 ; (лаунчер)
+01  =  +0000 ; (var)
+02  =  +000b ; (const)
+03  =  +0007 ; (const)
+04 READ   01 ; (начало программы)
+05 READ   01
+06 WRITE  01
+07 READ   01
+08 WRITE  01
+09 LOAD   02
+10 STORE  01
+11 WRITE  01
+12 LOAD   03
+13 STORE  01
+14 WRITE  01

@@ -38,7 +38,7 @@ def translator(code):
     return "c%s" % n
   def is_const(reg):
     if reg[0] != "c": return False
-    return consts[int(reg[1:])] is not None
+    return True #consts[int(reg[1:])] is not None
   regs = [] # регистры нужны для промежуточных операций
   def new_reg():
     for n, i in enumerate(regs):
@@ -197,7 +197,8 @@ def translator(code):
         add(20, reg) # LOAD <reg>
         label = get_label("cmp") # comparison
         label2 = get_label("cmpd") # comparison dropper
-        add(31, reg2) # SUB <reg2>
+        if reg2[0] == "c" and consts[int(reg2[1:])] == 0: pass # зачем из числа вычитать 0 ?)
+        else: add(31, reg2) # SUB <reg2>
         free_reg(reg2)
         if op in ("==", "!="):
           add(42, label) # JZ <label>
@@ -220,13 +221,17 @@ def translator(code):
           add(20, new_const(int(op == "<="))) # LOAD (0 при '>', либо 1 при '<=')
         else: error("expr:comparison: пока не поддерживается '%s' операция" % value)
         add(-1, label2)
+        orig_r = reg
+        if is_const(reg): reg = new_reg()
+        add(21, reg) # STORE <reg>
+        print(reg, "=", orig_r, op, reg2)
       return reg
     
     reg = handler(arr)
     free_reg(reg)
     return reg
   
-  prev_label = 0
+  prev_label = -1
   for line in code.split("\n"):
     arr = line.split()
     if not arr: continue
@@ -236,7 +241,7 @@ def translator(code):
     
     try: label = int(arr[0])
     except ValueError: exit("1-ое слово - не число")
-    if label <= prev_label: exit('1-ое слово <= "%s" из предыдущей строки, спасибо условиям ТЗ' % (line, prev_label))
+    if label <= prev_label: exit('1-ое слово <= "%s" из предыдущей строки, спасибо условиям ТЗ' % prev_label)
     prev_label = label
     
     code = arr[1]
@@ -282,7 +287,8 @@ def translator(code):
         save = err_prefix
         
         label = get_label(":cond")
-        add(42, reg) # JZ <reg>
+        add(20, reg) # LOAD <reg>
+        add(42, label) # JZ <label>
         handler(["%s ..." % arr[0]] + arr[yeah:])
         add(-1, label)
         
@@ -318,11 +324,50 @@ code = """
 10 REM Это комментарий
 20 INPUT A
 30 INPUT B
+35 IF A * B == 0 GOTO 20
 40 LET C=-5* A- -B * -10/A + B
-50 IF C < 0 GOTO 20
-60 PRINT C
+50 PRINT C
+60 IF C < 0 GOTO 20
 70 END
-"""
+""" # B - 5 * A - B / A * 10
 
-mem, sa = translator(code) # на самом деле Simple Assembler и Binary генерируются одновременно не зависимо от друг-друга без помощи sat.py, а не сначала sa, а потом mem, но в принципе это спорная ситуация по сравнению с ТЗ, так что и так пойдёт ;'-}
-# надеюсь это было рекомендаций а не обязаловкой, иначе это будет выглядеть абсурдно, как я в sat.py запихиваю sa переменную и получаю абсолютно то же, что и в mem переменной ;'-}}}}}}}
+# mem, sa = translator(code)
+# CurPath = os.path.dirname(__file__)
+# with open(os.path.join(CurPath, "translated.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
+
+def main():
+  import optparse
+  parser = optparse.OptionParser(usage="sbt.py <file_input_path.py> <file_output_path.mem>")
+  parser.add_option("-f", "--for_sat", action="store_true")
+  options, args = parser.parse_args(sys.argv) # добавляет опцию --help и --for_sat
+  
+  args = args[1:]
+  if len(args) != 2: parser.error("Ожидалось 2 строки после sbt.py")
+  src, dist = args
+  d_dir = os.path.dirname(dist)
+  if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
+  if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
+  
+  try:
+    with open(src) as file: code = file.read()
+  except:
+    print("❌ Ошибка открытия файла-источника:\n%s" % traceback.format_exc())
+    return
+  
+  try:
+    mem, sa = translator(code)
+    # на самом деле Simple Assembler и Binary генерируются одновременно не зависимо от друг-друга без помощи sat.py, а не сначала sa, а потом mem, но в принципе это спорная ситуация по сравнению с ТЗ, так что и так пойдёт ;'-}
+    # надеюсь это было рекомендаций а не обязаловкой, иначе это будет выглядеть абсурдно, как я в sat.py запихиваю sa переменную и получаю абсолютно то же, что и в mem переменной ;'-}}}}}}}
+  except:
+    print("❌ Ошибка компиляции:\n%s" % traceback.format_exc())
+    return
+  
+  try:
+    if options.for_sat: bin, content = False, "\n".join(sa)
+    else: bin, content = True, b"".join(bytes((i & 255, i >> 8)) for i in mem)
+    
+    with open(dist, "wb" if bin else "w") as file: file.write(content)
+    print("✅ Файл '%s' успешно сохранён (как %s)" % (dist, "mem" if bin else "sa"))
+  except: print("❌ Ошибка сохранения файла-результата:\n%s" % traceback.format_exc())
+
+if __name__ == "__main__": main()
