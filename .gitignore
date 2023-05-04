@@ -1,6 +1,7 @@
 # Assembly artifacts
 bin/*
 obj/*
+**/__pycache__/*
 
 # Runtime artifacts
 # *.mem
