@@ -1,0 +1,23 @@
+00 REM Это комментарий
+
+01 INPUT A
+02 INPUT B
+03 LET C = A - B
+04 IF C < 0 GOTO 01
+05 PRINT C
+
+06 LET n = -10
+
+07 LET N = n - 4
+08 IF N < 0 LET c = 100
+09 IF N == 0 LET c = 10
+10 IF N > 0 LET c = 1
+11 LET N = n
+12 IF N < 0 LET N=-N
+13 LET r = N * 1000 + c
+14 PRINT r
+
+15 LET n += 1
+16 IF n <= 10 GOTO 07
+
+17 END

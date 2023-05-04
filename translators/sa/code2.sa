@@ -1,0 +1,56 @@
+00 JUMP   12 ; (лаунчер)
+01  =  +0000 ; (var)
+02  =  +0000 ; (var)
+03  =  +0000 ; (var)
+04  =  +0000 ; (var)
+05  =  +000b ; (const)
+06  =  +0005 ; (const)
+07  =  +0007 ; (const)
+08  =  +0003 ; (const)
+09  =  +007b ; (const)
+10  =  +000a ; (const)
+11  =  +0000 ; (регистр)
+12 READ   11 ; (начало программы)
+13 LOAD   11
+14 STORE  02
+15 READ   11
+16 LOAD   11
+17 STORE  01
+18 WRITE  01
+19 WRITE  02
+20 WRITE  04
+21 WRITE  03
+22 LOAD   02
+23 ADD    05
+24 STORE  02
+25 WRITE  02
+26 LOAD   01
+27 SUB    06
+28 STORE  01
+29 WRITE  01
+30 LOAD   02
+31 MUL    07
+32 STORE  02
+33 WRITE  02
+34 DIVIDE 08
+35 STORE  02
+36 WRITE  02
+37 MOD    09
+38 STORE  02
+39 WRITE  02
+40 ADD    01
+41 ADD    02
+42 STORE  11
+43 MUL    10
+44 STORE  11
+45 SUB    06
+46 STORE  11
+47 STORE  04
+48 DIVIDE 09
+49 STORE  11
+50 WRITE  11
+51 LOAD   04
+52 MOD    09
+53 STORE  11
+54 WRITE  11
+55 HALT   00

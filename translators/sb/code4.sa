@@ -1,0 +1,99 @@
+00 JUMP   16 ; (лаунчер)
+01  =  +0000 ; (var)
+02  =  +0000 ; (var)
+03  =  +0000 ; (var)
+04  =  +0000 ; (const)
+05  =  +0001 ; (const)
+06  =  +0000 ; (var)
+07  =  -7f76 ; (const)
+08  =  +0000 ; (var)
+09  =  +0004 ; (const)
+10  =  +0000 ; (var)
+11  =  +0064 ; (const)
+12  =  +000a ; (const)
+13  =  +0000 ; (var)
+14  =  +0768 ; (const)
+15  =  +0000 ; (регистр)
+16 READ   01 ; (начало программы)
+17 READ   02
+18 LOAD   01
+19 SUB    02
+20 STORE  15
+21 STORE  03
+22 LOAD   03
+23 JNEG   26
+24 LOAD   04
+25 JUMP   27
+26 LOAD   05
+27 STORE  15
+28 JZ     30
+29 JUMP   16
+30 WRITE  03
+31 LOAD   07
+32 STORE  06
+33 LOAD   06
+34 SUB    09
+35 STORE  15
+36 STORE  08
+37 LOAD   08
+38 JNEG   41
+39 LOAD   04
+40 JUMP   42
+41 LOAD   05
+42 STORE  15
+43 JZ     46
+44 LOAD   11
+45 STORE  10
+46 LOAD   08
+47 JZ     50
+48 LOAD   04
+49 JUMP   51
+50 LOAD   05
+51 STORE  15
+52 JZ     55
+53 LOAD   12
+54 STORE  10
+55 LOAD   08
+56 JNEG   60
+57 JZ     60
+58 LOAD   05
+59 JUMP   61
+60 LOAD   04
+61 STORE  15
+62 JZ     65
+63 LOAD   05
+64 STORE  10
+65 LOAD   06
+66 STORE  08
+67 LOAD   08
+68 JNEG   71
+69 LOAD   04
+70 JUMP   72
+71 LOAD   05
+72 STORE  15
+73 JZ     78
+74 LOAD   04
+75 SUB    08
+76 STORE  15
+77 STORE  08
+78 LOAD   08
+79 MUL    14
+80 STORE  15
+81 ADD    10
+82 STORE  15
+83 STORE  13
+84 WRITE  13
+85 LOAD   06
+86 ADD    05
+87 STORE  06
+88 LOAD   06
+89 SUB    12
+90 JNEG   94
+91 JZ     94
+92 LOAD   04
+93 JUMP   95
+94 LOAD   05
+95 STORE  15
+96 JZ     98
+97 JUMP   33
+98 HALT   00

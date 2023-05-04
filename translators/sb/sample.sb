@@ -1,0 +1,8 @@
+10 REM Это комментарий
+20 INPUT A
+30 INPUT B
+35 IF A * B == 0 GOTO 20
+40 LET C=-5* A- -B * -10/A + B
+50 PRINT C
+60 IF C < 0 GOTO 20
+70 END

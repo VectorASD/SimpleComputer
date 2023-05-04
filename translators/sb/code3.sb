@@ -1,0 +1,31 @@
+00 LET A = 0
+01 PRINT A
+
+02 LET A = 1
+03 PRINT A
+
+04 INPUT A
+05 INPUT B
+
+06 LET C = A == B
+07 PRINT C
+
+08 LET C = A != B
+09 PRINT C
+
+10 LET C = A <> B
+11 PRINT C
+
+12 LET C = A > B
+13 PRINT C
+
+14 LET C = A <= B
+15 PRINT C
+
+16 LET C = A < B
+17 PRINT C
+
+18 LET C = A >= B
+19 PRINT C
+
+20 END

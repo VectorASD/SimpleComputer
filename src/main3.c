@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int
-main (int argc, char **args)
-{
-  bc_termTest ();
-  return 0;
+int main(int argc, char **args) {
+    bc_termTest();
+    return 0;
 }

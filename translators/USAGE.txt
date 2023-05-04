@@ -1,0 +1,40 @@
+Примеры команд использования трансляторов:
+
+python3 Python2bin.py py/code.py  py/code.mem
+python3 Python2bin.py py/code2.py py/code2.mem
+python3 Python2bin.py py/code3.py py/code3.mem
+python3 Python2bin.py py/code4.py py/code4.mem
+python3 Python2bin.py py/code5.py py/code5.mem
+python3 Python2bin.py py/code6.py py/code6.mem
+
+python3 Python2bin.py py/code.py  sa/code.sa  --for_sat
+python3 Python2bin.py py/code2.py --for_sat sa/code2.sa
+python3 Python2bin.py --for_sat py/code3.py sa/code3.sa
+python3 Python2bin.py py/code4.py sa/code4.sa --for_sat
+python3 Python2bin.py py/code5.py sa/code5.sa -f
+python3 Python2bin.py py/code6.py sa/code6.sa -f
+
+python3 sat.py sa/sample.sa sa/sample.mem
+python3 sat.py sa/code.sa  sa/code.mem
+python3 sat.py sa/code2.sa sa/code2.mem
+python3 sat.py sa/code3.sa sa/code3.mem
+python3 sat.py sa/code4.sa sa/code4.mem
+python3 sat.py sa/code5.sa sa/code5.mem
+python3 sat.py sa/code6.sa sa/code6.mem
+
+python3 sat.py py sa -t
+python3 sat.py py\/ sa/\ --test
+
+python3 sbt.py sb/sample.sb sb/sample.mem
+python3 sbt.py sb/code.sb  sb/code.mem
+python3 sbt.py sb/code2.sb sb/code2.mem
+python3 sbt.py sb/code3.sb sb/code3.mem
+python3 sbt.py sb/code4.sb sb/code4.mem
+
+python3 sbt.py sb/sample.sb sb/sample.sa -f
+python3 sbt.py sb/code.sb  sb/code.sa  -f
+python3 sbt.py sb/code2.sb sb/code2.sa -f
+python3 sbt.py sb/code3.sb sb/code3.sa -f
+python3 sbt.py sb/code4.sb sb/code4.sa -f
+
+Желательно находиться в папке с Python2bin.py и прочими скриптами-трансляторами, если нет желания везде дописывать "translators/..."
