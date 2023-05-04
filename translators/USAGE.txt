@@ -1,0 +1,10 @@
+Примеры команд использования трансляторов:
+
+python3 Python2bin.py py/code.py py/code.mem
+python3 Python2bin.py py/code2.py py/code2.mem
+python3 Python2bin.py py/code3.py py/code3.mem
+python3 Python2bin.py py/code4.py py/code4.mem
+python3 Python2bin.py py/code5.py py/code5.mem
+python3 Python2bin.py py/code6.py py/code6.mem
+
+Желательно находиться в папке с Python2bin.py и прочими скриптами-трансляторами, если нет желания везде дописывать "translators/..."

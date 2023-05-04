@@ -589,7 +589,7 @@ def compiler(code):
   
   print("~" * 60)
   print_mem(mem)
-  with open(os.path.join(CurPath, "compiled.mem"), "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
+  return mem
 
 # успешно прошедший код:
 code = """
@@ -663,9 +663,7 @@ while i >= 0:
   i -= 1
 """ # этот код абсолютно полностью доказывает работоспособность команд MOVA и MOVR! Есть некоторые неудобства, например, эти команды сохраняют и загружают в память, а не аккумулятор, но терпин ;)
 
-# разработка:
-
-code = """
+code6 = """
 i = 0
 while True:
   num = i - 4
@@ -674,4 +672,36 @@ while True:
   if i >= 10: break
 """
 
-compiler(code)
+# разработка:
+# пока-что нечего разрабатывать. В этом разделе и рождались code, code2, code3, code4, code5 и code6 переменные, но каждый раз, когда они полностью проходили проверку компиляцией и исполненем, то переходили в предыдущей раздел
+# P.S. чисто для формальности вытащил все 6 блоков кода в файлы в папку "py/"
+
+def main():
+	import optparse
+	parser = optparse.OptionParser(usage="Python2bin.py <file_input_path.py> <file_output_path.mem>")
+	options, args = parser.parse_args(sys.argv) # добавляет опцию --help
+	args = args[1:]
+	if len(args) != 2: parser.error("Ожидалось 2 строки после Python2bin.py")
+	src, dist = args
+	d_dir = os.path.dirname(dist)
+	if not os.path.exists(src): parser.error("❌ Не найден файл-источник: '%s'" % src)
+	if d_dir and not os.path.exists(d_dir): parser.error("❌ Не обнаружена дирректория файла-результата: '%s/'" % d_dir)
+	
+	try:
+		with open(src) as file: code = file.read()
+	except Exception as e:
+		print("❌ Ошибка открытия файла-источника:\n%s" % e)
+		return
+	
+	try: mem = compiler(code)
+	except Exception as e:
+		print("❌ Ошибка компиляции:\n%s" % e)
+		return
+	
+	try:
+		with open(dist, "wb") as file: file.write(b"".join(bytes((i & 255, i >> 8)) for i in mem))
+		print("✅ Файл '%s' успешно сохранён" % dist)
+	except Exception as e: print("❌ Ошибка сохранения файла-результата:\n%s" % e)
+
+if __name__ == "__main__": main()
+
