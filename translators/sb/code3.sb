@@ -27,3 +27,5 @@
 
 18 LET C = A >= B
 19 PRINT C
+
+20 END

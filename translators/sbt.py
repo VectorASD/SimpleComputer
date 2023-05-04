@@ -271,7 +271,7 @@ def translator(code):
         var = new_var(var)
         add(11, var) # WRITE <var>
       elif code == "END":
-        if not codes or codes[0][0] != 43: add(43) # HALT
+        if not codes or codes[-1][0] != 43: add(43) # HALT
       elif code == "LET":
         if len(arr) == 2: exit("после %s должно быть хотя бы одно слово" % code)
         expr(" ".join(arr[2:])) # вроде одна строчка, а внутри целое королевство кода ;'-}}}
@@ -305,6 +305,7 @@ def translator(code):
       else: exit("2-ое слово не поддерживается Simple Basic'ом")
     handler(arr)
   
+  if not codes or codes[-1][0] != 43: exit("В конце программы ожидался END, спасибо условиям ТЗ") # (add(43) # HALT) А вот нееее, ТЗ опяяять по другому думает ;'-}}}}}}}}}
   err_prefix = None
 
   print("~" * 60)
